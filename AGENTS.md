@@ -77,6 +77,20 @@ project (`optics/`) that happens to live in the same repo. Part of the
   assume GOROOT-style resolution. `go.mod` `replace` directives and GOPATH
   are both the wrong tool; a real merged GOROOT (`packages.firmware-goroot`
   in `flake.nix`) is what actually works, verified with `gopls check`.
+- **Grabbing a single frame (`ffmpeg -frames:v 1`) right after a state
+  change (turning an LED on/off, moving something into frame) can return a
+  stale buffered frame from *before* the change** — UVC/V4L2 devices don't
+  guarantee the first frame served after a change is a fresh one. Grab
+  3-4 frames and use the last, not the first, if you're photographing
+  something that just changed. Cost a real misdiagnosis once (reported an
+  LED as "not lighting" when it was, in fact, lit — the photo was just
+  old).
+- **PWM duty cycle is "fraction of time HIGH"** (`PWM <pin> 0` = pin held
+  LOW, `PWM <pin> 255` = pin held HIGH). For an LED wired **common-anode**
+  with its cathode on the GPIO pin, that's inverted from intuition: `0` is
+  brightest (pin sinking current = LED conducting), `255` is fully off.
+  Confirm polarity (diode-mode multimeter check: current only flows one
+  way) before assuming higher value means brighter.
 
 ## Verifying you haven't broken anything
 
