@@ -30,6 +30,57 @@
           cp -r ${technic-scad} $out/Technic.scad
           cp -r ${pela-blocks} $out/PELA-blocks
         '';
+
+        # A GOROOT gopls can use to resolve `machine` and its transitive
+        # imports (device/avr, runtime/volatile, ...) when editing
+        # firmware/main.go. `machine` lives in TinyGo's own TINYGOROOT/src,
+        # not in any fetchable module (no go.mod there, and its imports
+        # assume GOROOT-style resolution the same way tinygo's own compiler
+        # does internally) — so this merges the real stdlib with exactly the
+        # TinyGo-exclusive packages, via symlinks (a few MB, not a stdlib
+        # copy).
+        #
+        # Two real snags fixed here, found by testing rather than designed
+        # around: (1) copying instead of symlinking inherits the Nix store's
+        # read-only directory permissions onto the destination, breaking a
+        # second overlay pass — avoided entirely by symlinking, never
+        # copying, real GOROOT content; (2) merging the whole `runtime`
+        # directory (real + TinyGo's) trips Go's cross-platform
+        # case-insensitivity guard (real `asm_386.s` vs TinyGo's
+        # `asm_386.S`) — avoided by only *adding* TinyGo's runtime-exclusive
+        # subdirectories rather than merging the whole directory.
+        firmwareGoroot = pkgs.runCommand "testbench-firmware-goroot"
+          { nativeBuildInputs = [ pkgs.tinygo ]; }
+          ''
+            TGR=$(tinygo env TINYGOROOT)
+            GOROOT_REAL=$(tinygo env GOROOT)
+
+            mkdir -p $out/src
+
+            for entry in "$GOROOT_REAL"/*; do
+              [ "$(basename "$entry")" = "src" ] && continue
+              ln -sfn "$entry" "$out/$(basename "$entry")"
+            done
+
+            for entry in "$GOROOT_REAL"/src/*; do
+              name=$(basename "$entry")
+              if [ "$name" = "runtime" ]; then
+                mkdir -p "$out/src/runtime"
+                for sub in "$entry"/*; do
+                  ln -sfn "$sub" "$out/src/runtime/$(basename "$sub")"
+                done
+              else
+                ln -sfn "$entry" "$out/src/$name"
+              fi
+            done
+
+            for name in device examples machine tinygo; do
+              ln -sfn "$TGR/src/$name" "$out/src/$name"
+            done
+            for name in internal interrupt volatile; do
+              ln -sfn "$TGR/src/runtime/$name" "$out/src/runtime/$name"
+            done
+          '';
       in
       {
         packages = {
@@ -67,6 +118,10 @@
               ln -s ${opticsLib} build/lib
               openscad -o $out/calibration.stl -D '_large_nozzle=false' build/calibration.scad
             '';
+
+          # Exposed directly for inspection/testing: `nix build .#firmware-goroot`
+          # then `GOROOT=./result GOFLAGS=-tags=arduino_uno gopls check firmware/main.go`.
+          firmware-goroot = firmwareGoroot;
         };
 
         devShells.default = pkgs.mkShell {
@@ -84,6 +139,7 @@
               ln -sfn ${opticsLib} optics/lib
               echo "optics/lib -> Nix store (pinned via flake inputs, see flake.nix)"
             fi
+            ln -sfn ${firmwareGoroot} firmware/.gopls-goroot
           '';
         };
       }

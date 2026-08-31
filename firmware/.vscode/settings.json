@@ -1,7 +1,7 @@
 {
   "go.toolsEnvVars": {
-    "GOROOT": "${env:HOME}/.cache/testbench-firmware-goroot",
+    "GOROOT": "${workspaceFolder}/.gopls-goroot",
     "GOFLAGS": "-tags=arduino_uno"
   },
-  "go.goroot": "${env:HOME}/.cache/testbench-firmware-goroot"
+  "go.goroot": "${workspaceFolder}/.gopls-goroot"
 }

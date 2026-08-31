@@ -92,24 +92,32 @@ the `Client` API (`Open`, `Ping`, `ID`, `Mode`, `Read`, `Write`).
 `machine` (and its transitive imports like `device/avr`, `runtime/volatile`)
 live in TinyGo's own `TINYGOROOT/src`, not in any GOROOT, GOPATH, or
 fetchable Go module gopls already knows about — there's no `go.mod` there,
-and nothing to `go get`. Run once:
+and nothing to `go get`.
+
+This is handled by the flake, not a script: `nix develop`'s shellHook
+symlinks `firmware/.gopls-goroot` to a Nix derivation
+(`packages.firmware-goroot`) that merges the real Go stdlib with exactly
+the packages TinyGo adds that don't already exist there — via symlinks, a
+few MB, not a stdlib copy. Just enter the shell:
 
 ```
-cd firmware
-./setup-editor.sh
+nix develop
 ```
 
-This builds a merged GOROOT at `~/.cache/testbench-firmware-goroot`
-(symlinks, not copies — a few MB, not a stdlib copy) containing the real
-Go stdlib plus exactly the packages TinyGo adds that don't already exist
-there. `firmware/.vscode/settings.json` points gopls at it automatically
-when `firmware/` is opened as a workspace folder, and sets
-`GOFLAGS=-tags=arduino_uno` so board-specific files like
-`board_arduino_uno.go` (where `machine.D0`..`D13` are actually defined)
-are included. Verified clean end-to-end with `gopls check main.go` — zero
-diagnostics. Re-run the script if TinyGo or Go get upgraded.
+and the symlink is there, always pointing at the current flake-pinned
+TinyGo version (no "did I remember to re-run the setup script after
+upgrading" drift). `firmware/.vscode/settings.json` points gopls at
+`${workspaceFolder}/.gopls-goroot` automatically when `firmware/` is
+opened as a workspace folder, and sets `GOFLAGS=-tags=arduino_uno` so
+board-specific files like `board_arduino_uno.go` (where `machine.D0`..`D13`
+are actually defined) are included. Verified clean end-to-end with `gopls
+check main.go` against the real symlinked path — zero diagnostics.
 
-`host/` needs none of this — it's ordinary Go, resolved normally.
+Can also be inspected/tested standalone: `nix build .#firmware-goroot`.
+
+`host/` needs none of this — it's ordinary Go, resolved normally, and
+deliberately shares nothing with `firmware/`'s special environment (they're
+separate Go modules for exactly this reason).
 
 ## Protocol
 
