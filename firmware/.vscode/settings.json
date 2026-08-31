@@ -1,7 +1,7 @@
 {
   "go.toolsEnvVars": {
     "GOROOT": "${workspaceFolder}/.gopls-goroot",
-    "GOFLAGS": "-tags=arduino_uno"
+    "GOFLAGS": "-tags=avr,baremetal,linux,arm,atmega328p,atmega,avr5,arduino_uno,tinygo,purego,osusergo,math_big_pure_go,gc.conservative,scheduler.none,serial.uart,tinygo.unicore"
   },
   "go.goroot": "${workspaceFolder}/.gopls-goroot"
 }

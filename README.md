@@ -108,10 +108,18 @@ and the symlink is there, always pointing at the current flake-pinned
 TinyGo version (no "did I remember to re-run the setup script after
 upgrading" drift). `firmware/.vscode/settings.json` points gopls at
 `${workspaceFolder}/.gopls-goroot` automatically when `firmware/` is
-opened as a workspace folder, and sets `GOFLAGS=-tags=arduino_uno` so
-board-specific files like `board_arduino_uno.go` (where `machine.D0`..`D13`
-are actually defined) are included. Verified clean end-to-end with `gopls
-check main.go` against the real symlinked path — zero diagnostics.
+opened as a workspace folder, and sets the **full** build tag list `tinygo
+info -target=arduino-uno` reports (`avr,baremetal,arm,atmega328p,...` —
+see the settings file for the exact list) so everything gated behind them
+resolves — including board-specific files like `board_arduino_uno.go`
+(where `machine.D0`..`D13` are defined) and chip-specific ones like
+`machine_atmega328.go` (where `machine.PWM`/`Timer0`..`Timer2` are
+defined). Just `arduino_uno` alone isn't enough — confirmed by testing:
+it resolves `machine.D0` fine but leaves `machine.PWM` undefined, since
+that file's `//go:build avr && (atmega328p || atmega328pb)` needs tags
+`arduino_uno` doesn't include. Verified clean end-to-end with `gopls
+check` against both `cmd/probe/main.go` and `cmd/light-breathe/main.go`
+(which uses PWM) — zero diagnostics on either.
 
 Can also be inspected/tested standalone: `nix build .#firmware-goroot`.
 

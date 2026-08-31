@@ -81,6 +81,27 @@
               ln -sfn "$TGR/src/runtime/$name" "$out/src/runtime/$name"
             done
           '';
+
+        # One firmware image per device, mirroring host/cmd/ -- each is a
+        # complete, standalone binary for the whole chip (these are never
+        # combined; only one runs on the Uno at a time), built from
+        # firmware/cmd/<name>.
+        mkFirmware = name: pkgs.stdenv.mkDerivation {
+          pname = "testbench-uno-firmware-${name}";
+          version = "0.1.0";
+          src = ./firmware;
+          nativeBuildInputs = [ pkgs.tinygo ];
+          # tinygo shells out to `go` underneath, which wants a writable $HOME
+          # for its cache; the build sandbox gives none by default.
+          buildPhase = ''
+            export HOME=$TMPDIR
+            tinygo build -target=arduino-uno -o ${name}.hex ./cmd/${name}
+          '';
+          installPhase = ''
+            mkdir -p $out
+            cp ${name}.hex $out/
+          '';
+        };
       in
       {
         packages = {
@@ -93,22 +114,8 @@
             meta.mainProgram = "probe"; # binary is named after cmd/probe, not pname
           };
 
-          firmware = pkgs.stdenv.mkDerivation {
-            pname = "testbench-uno-firmware";
-            version = "0.1.0";
-            src = ./firmware;
-            nativeBuildInputs = [ pkgs.tinygo ];
-            # tinygo shells out to `go` underneath, which wants a writable $HOME
-            # for its cache; the build sandbox gives none by default.
-            buildPhase = ''
-              export HOME=$TMPDIR
-              tinygo build -target=arduino-uno -o testbench-uno.hex .
-            '';
-            installPhase = ''
-              mkdir -p $out
-              cp testbench-uno.hex $out/
-            '';
-          };
+          firmware-probe = mkFirmware "probe";
+          firmware-light-breathe = mkFirmware "light-breathe";
 
           optics-calibration = pkgs.runCommand "testbench-optics-calibration"
             { nativeBuildInputs = [ pkgs.openscad ]; }

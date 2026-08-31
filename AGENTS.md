@@ -91,15 +91,41 @@ project (`optics/`) that happens to live in the same repo. Part of the
   brightest (pin sinking current = LED conducting), `255` is fully off.
   Confirm polarity (diode-mode multimeter check: current only flows one
   way) before assuming higher value means brighter.
+- **`-tags=arduino_uno` alone isn't enough for gopls to resolve everything
+  `tinygo build` can see.** It resolves board-specific files fine
+  (`machine.D0`, board pin constants) but leaves chip-specific ones like
+  `machine.PWM`/`Timer0`-`Timer2` undefined, since those live behind
+  `//go:build avr && (atmega328p || atmega328pb)` — tags `arduino_uno`
+  doesn't include. Run `tinygo info -target=arduino-uno` to get the
+  *complete* real tag list TinyGo uses internally; `firmware/.vscode/settings.json`
+  has the current full list for this target.
+- **A flake's `./path` sources only see git-tracked (or staged) files,
+  not arbitrary untracked ones in the working tree.** Adding a new file
+  and immediately `nix build`ing against it fails confusingly ("directory
+  not found") until it's at least `git add`ed — doesn't need to be
+  committed, just staged.
+
+## Per-device firmware
+
+Mirrors `host/cmd/`: each `firmware/cmd/<name>/main.go` is a complete,
+standalone firmware image for the *whole chip* — these are never combined
+into one binary, only one runs on the Uno at a time. `cmd/probe` is the
+general-purpose serial GPIO probe everything else here is built around;
+other entries (`cmd/light-breathe`) are one-off, hardwired firmwares for a
+specific attached peripheral that don't need or use the serial protocol
+at all — flash them and they just run, no host required. Each gets its
+own `packages.firmware-<name>` output in `flake.nix` via the shared
+`mkFirmware` helper.
 
 ## Verifying you haven't broken anything
 
 ```
 nix flake check                    # evaluates everything, cheap
 nix build .#probe && result/bin/probe /dev/ttyACM0 ping   # needs real hardware
-nix build .#firmware                                       # then flash + ping to confirm
+nix build .#firmware-probe                                  # then flash + ping to confirm
+nix build .#firmware-light-breathe                          # then flash + watch it breathe
 nix build .#optics-calibration     # real OpenSCAD render, ~1 min
-nix develop -c bash -c 'cd firmware && GOROOT=$(pwd)/.gopls-goroot GOFLAGS=-tags=arduino_uno gopls check main.go'
+nix develop -c bash -c 'cd firmware && GOROOT=$(pwd)/.gopls-goroot GOFLAGS=-tags=avr,baremetal,linux,arm,atmega328p,atmega,avr5,arduino_uno,tinygo,purego,osusergo,math_big_pure_go,gc.conservative,scheduler.none,serial.uart,tinygo.unicore gopls check ./cmd/probe/main.go ./cmd/light-breathe/main.go'
 ```
 
 All of these have been run for real at some point in this repo's history
