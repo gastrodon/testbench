@@ -10,18 +10,41 @@ Part of the [Shop testbench project](https://linear.app/gastrodon/document/testb
 in [gastrodon/dotfiles](https://github.com/gastrodon/dotfiles)). This repo
 is just the Uno firmware and its host client.
 
-## Layout
-
-```
-firmware/   TinyGo firmware for the Uno (AVR target)
-host/       Ordinary Go client library + a `probe` CLI
-```
-
 Two separate Go modules, deliberately: `firmware` targets bare-metal AVR
 through TinyGo and must stay free of anything TinyGo can't compile;
 `host` is plain Go with no special toolchain and no dependencies at all
 (stdlib only — shells out to `stty` for serial config, same as this
 project's other serial work).
+
+## Nix
+
+Everything below also has a Nix-native path, verified working end-to-end
+(built, and for `probe`/`firmware`, actually run against real hardware):
+
+```
+nix develop              # tinygo, avrdude, arduino-cli, openscad, go, esptool all on PATH
+nix build .#probe        # host CLI
+nix build .#firmware     # -> result/testbench-uno.hex
+nix build .#optics-calibration   # -> result/calibration.stl
+```
+
+The two external OpenSCAD libraries `optics/` depends on
+(`cfinke/Technic.scad`, `paulirotta/PELA-blocks`) are flake inputs, pinned
+by commit and content-hashed in `flake.lock` — not an imperative fetch
+script. `nix develop`'s shellHook symlinks `optics/lib` to the resolved
+store paths automatically.
+
+One real gotcha hit while building the `firmware` package: TinyGo shells
+out to `go` underneath, which wants a writable `$HOME` for its cache — the
+build sandbox gives none by default (`mkdir /homeless-shelter: permission
+denied`). Fixed with `export HOME=$TMPDIR` in the derivation's buildPhase.
+Also: `nix run .#probe` needs `meta.mainProgram = "probe";` set, since Go
+names the binary after `cmd/probe`, not the Nix package's `pname`
+(`testbench-probe`) — without it `nix run` looks for the wrong filename.
+
+The manual commands below still work unchanged (useful for quick iteration
+without a full Nix build each time); the flake is for reproducibility, not
+a replacement for the fast inner loop.
 
 ## Building and flashing the firmware
 

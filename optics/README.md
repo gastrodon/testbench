@@ -16,12 +16,15 @@ start the moment measurements exist.
 
 ## Toolchain
 
+Everything's a Nix flake now (`../flake.nix`) — the two libraries are flake
+inputs, pinned by commit and content-hashed, not an imperative fetch script:
+
 ```
-./fetch-libs.sh    # vendors lib/Technic.scad and lib/PELA-blocks, pinned commits
+nix develop            # whole toolchain on PATH + optics/lib symlinked to the pinned libs
+nix build .#optics-calibration   # renders the calibration STL, verified working
 ```
 
-- **OpenSCAD** (`nix shell nixpkgs#openscad`, or the `openscad-unstable` in
-  `module/cad.nix` once that's switched) — fully CLI-drivable, no GUI needed.
+- **OpenSCAD** — fully CLI-drivable, no GUI needed.
 - **[cfinke/Technic.scad](https://github.com/cfinke/Technic.scad)** — beams,
   pins, axles, gears. Confirmed working: `technic_beam()` renders to a valid
   manifold STL (~53s on this machine — OpenSCAD's CGAL renderer is slow but
@@ -31,9 +34,11 @@ start the moment measurements exist.
   (`top_tweak`/`bottom_tweak`/`axle_hole_tweak`), including a print
   calibration beam. This is the one that matters for actually getting a
   clean fit on the Ender 3.
-- Libraries are **fetched, not vendored** (`lib/` is gitignored) — third-party
-  MIT/CC-BY-SA code, pinned by commit hash in `fetch-libs.sh` for
-  reproducibility rather than checked into this repo.
+- Libraries are **flake inputs, not vendored** (`lib/` is gitignored, and
+  is now a symlink into the Nix store, created by `nix develop`'s
+  shellHook) — third-party MIT/CC-BY-SA code, pinned by commit hash +
+  content hash in `flake.lock` rather than checked into this repo or
+  fetched by a shell script.
 
 ### A real OpenSCAD gotcha, found by testing
 
@@ -58,15 +63,22 @@ tolerance segment actually fits your printer + filament, and record the
 offset. Every part after this uses that number.
 
 ```
-openscad -o calibration.stl -D '_large_nozzle=false' calibration.scad
+nix build .#optics-calibration    # -> result/calibration.stl, verified working (~1 min render)
+```
+
+Or, inside `nix develop` (equivalent, but lets you pass your own `-D`
+flags — e.g. a shorter beam while just checking the pipeline runs):
+
+```
+openscad -o calibration.stl -D '_large_nozzle=false' -D '_beam_length=2' calibration.scad
 ```
 
 (`_large_nozzle=false` because the Ender 3's stock nozzle is 0.4mm, below
 PELA's own 0.5mm default threshold — verified this actually changes
-behavior, not just cosmetic.) Add `-D '_beam_length=N'` to shorten/lengthen
-the printed strip; smaller prints faster if you just want to confirm the
-pipeline (a 2-segment beam renders in ~11s here; the fuller default is
-slower and untested end-to-end — expect a few minutes).
+behavior, not just cosmetic. The packaged `optics-calibration` build
+already bakes this in at the full default beam length — confirmed
+rendering real, valid geometry: 19154 vertices, `Simple: yes`, 128
+volumes.)
 
 ## Stage 0 — blocking, physical, not automatable
 
