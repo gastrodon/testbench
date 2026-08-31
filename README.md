@@ -1,0 +1,91 @@
+# testbench
+
+Firmware + host client for turning an Arduino Uno into a general-purpose
+GPIO probe an agent (or a human) can drive over serial: configure pins,
+read digital/analog levels, drive outputs — one line-oriented command at a
+time.
+
+Part of the [Shop testbench project](https://linear.app/gastrodon/document/testbench-agent-operable-hardware-bench-41d0596a0f66)
+— see that doc for the wider bench (camera, Pi fleet, `module/hw-bench.nix`
+in [gastrodon/dotfiles](https://github.com/gastrodon/dotfiles)). This repo
+is just the Uno firmware and its host client.
+
+## Layout
+
+```
+firmware/   TinyGo firmware for the Uno (AVR target)
+host/       Ordinary Go client library + a `probe` CLI
+```
+
+Two separate Go modules, deliberately: `firmware` targets bare-metal AVR
+through TinyGo and must stay free of anything TinyGo can't compile;
+`host` is plain Go with no special toolchain and no dependencies at all
+(stdlib only — shells out to `stty` for serial config, same as this
+project's other serial work).
+
+## Building and flashing the firmware
+
+```
+cd firmware
+tinygo build -target=arduino-uno -size=short -o /tmp/testbench-uno.hex .
+tinygo flash -target=arduino-uno -port=/dev/ttyACM0 .
+```
+
+Needs `tinygo` + `avrdude` on PATH — both provided by `hwBench.enable` in
+`module/hw-bench.nix` once that's switched, or ephemerally via
+`nix shell nixpkgs#tinygo nixpkgs#avrdude`. Flashing needs `dialout` group
+access to the port.
+
+Current build: **5516 bytes flash / 609 bytes RAM** — Uno has 32256/2048
+available, so there's plenty of headroom for growing the command set.
+
+## Using the host client / CLI
+
+```
+cd host
+go build -o probe ./cmd/probe
+
+./probe /dev/ttyACM0 ping
+./probe /dev/ttyACM0 id
+```
+
+**Important**: opening the serial port resets the Uno (DTR auto-reset),
+which wipes any pin `MODE` a previous connection configured. Each one-shot
+`probe <device> <command>` invocation is its own fresh connection — fine
+for independent commands (`ping`, `id`, `read` on a pin already wired the
+way you want), but a stateful sequence like "configure a pin as output,
+then write it" needs to happen over **one** connection. Use batch mode for
+that:
+
+```
+printf 'MODE D13 OUT\nWRITE D13 1\nREAD D13\nWRITE D13 0\n' | ./probe /dev/ttyACM0
+```
+
+Or use the `testbench` package directly from Go — see `host/client.go` for
+the `Client` API (`Open`, `Ping`, `ID`, `Mode`, `Read`, `Write`).
+
+## Protocol
+
+See [PROTOCOL.md](PROTOCOL.md) for the full command reference.
+
+## Safety notes
+
+- **D0/D1 are the UART to the host** — the firmware refuses `MODE`/`WRITE`
+  on them (`ERR reserved-uart`). Don't wire a DUT to them.
+- **This firmware only drives 5V logic.** Anything lower-voltage (a ~3V
+  toy, for instance) should only ever be wired as an *input* to the Uno,
+  never have the Uno drive an output into it.
+- A0-A5 are fixed ADC inputs in this version — no digital I/O on the
+  analog-labeled pins yet (Arduino normally allows this; scope-limited
+  here for simplicity, see PROTOCOL.md).
+
+## Status
+
+Verified end-to-end on real hardware (genuine Uno R3, `/dev/ttyACM0`) —
+`PING`/`ID`/`MODE`/`READ`/`WRITE` all round-tripped correctly, including
+error paths (bad command, bad pin, bad mode, write-without-configure,
+reserved UART pins). Onboard LED (`D13`) blinked on command as the
+smoke test.
+
+Not yet implemented: PWM (`analogWrite`), digital I/O on A0-A5, any framing
+beyond plain ASCII lines.
