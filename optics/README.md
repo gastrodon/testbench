@@ -4,7 +4,7 @@ A LEGO Technic + printed-collar coupler to hold the bench webcam ([../README.md]
 rigidly against the toy microscope's eyepiece (Smithsonian/NSI B24014N,
 [EVA-295](https://linear.app/gastrodon/issue/EVA-295)) — so the agent-operable
 bench can look at small things, not just the desk. Full research + design
-plan: [webcam-microscope-coupler.md](https://linear.app/gastrodon/document/webcam-microscope-coupler-lego-tinygo-testbench-optics)
+plan: [webcam-microscope-coupler.md](https://linear.app/gastrodon/document/webcam-microscope-coupler-lego-printed-collar-996d07bbeda7)
 (Obsidian: `~/notes/project/Lab/webcam-microscope-coupler.md`).
 
 ## Status: tooling verified, design not started
