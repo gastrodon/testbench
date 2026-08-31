@@ -48,19 +48,28 @@ a replacement for the fast inner loop.
 
 ## Building and flashing the firmware
 
+One firmware image per device, under `firmware/cmd/<name>/` (mirrors
+`host/cmd/`) — build/flash whichever one you actually want on the chip:
+
 ```
 cd firmware
-tinygo build -target=arduino-uno -size=short -o /tmp/testbench-uno.hex .
-tinygo flash -target=arduino-uno -port=/dev/ttyACM0 .
+tinygo build -target=arduino-uno -size=short -o /tmp/testbench-uno.hex ./cmd/probe
+tinygo flash -target=arduino-uno -port=/dev/ttyACM0 ./cmd/probe
 ```
+
+(swap `./cmd/probe` for `./cmd/light-breathe`, etc. — only one runs on the
+Uno at a time, they're not combined into one binary)
 
 Needs `tinygo` + `avrdude` on PATH — both provided by `hwBench.enable` in
 `module/hw-bench.nix` once that's switched, or ephemerally via
 `nix shell nixpkgs#tinygo nixpkgs#avrdude`. Flashing needs `dialout` group
 access to the port.
 
-Current build: **10397 bytes flash / 1244 bytes RAM** — Uno has 32256/2048
-available, so there's still plenty of headroom for growing the command set.
+Current build sizes: **`cmd/probe`: 10397 bytes flash / 1244 bytes RAM**,
+**`cmd/light-breathe`: 25814 bytes flash / 950 bytes RAM** — Uno has
+32256/2048 available. `light-breathe` uses `math.Sin` directly rather than
+a lookup table, since each firmware owns the whole chip alone — there's
+nothing else competing for that flash budget.
 
 ## Using the host client / CLI
 
