@@ -87,6 +87,30 @@ printf 'MODE D13 OUT\nWRITE D13 1\nREAD D13\nWRITE D13 0\n' | ./probe /dev/ttyAC
 Or use the `testbench` package directly from Go — see `host/client.go` for
 the `Client` API (`Open`, `Ping`, `ID`, `Mode`, `Read`, `Write`).
 
+## Editor setup (VSCodium/gopls)
+
+`machine` (and its transitive imports like `device/avr`, `runtime/volatile`)
+live in TinyGo's own `TINYGOROOT/src`, not in any GOROOT, GOPATH, or
+fetchable Go module gopls already knows about — there's no `go.mod` there,
+and nothing to `go get`. Run once:
+
+```
+cd firmware
+./setup-editor.sh
+```
+
+This builds a merged GOROOT at `~/.cache/testbench-firmware-goroot`
+(symlinks, not copies — a few MB, not a stdlib copy) containing the real
+Go stdlib plus exactly the packages TinyGo adds that don't already exist
+there. `firmware/.vscode/settings.json` points gopls at it automatically
+when `firmware/` is opened as a workspace folder, and sets
+`GOFLAGS=-tags=arduino_uno` so board-specific files like
+`board_arduino_uno.go` (where `machine.D0`..`D13` are actually defined)
+are included. Verified clean end-to-end with `gopls check main.go` — zero
+diagnostics. Re-run the script if TinyGo or Go get upgraded.
+
+`host/` needs none of this — it's ordinary Go, resolved normally.
+
 ## Protocol
 
 See [PROTOCOL.md](PROTOCOL.md) for the full command reference.
