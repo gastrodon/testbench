@@ -22,6 +22,13 @@ host client" section.
   inputs; `MODE`/`WRITE` reject them with `analog-fixed-input`). Real
   Arduio hardware can also use these as digital I/O (`D14`-`D19`) — not
   exposed yet, see README.md's Status section.
+- **PWM (hardware, not software-simulated)** is only wired to 6 of the 14
+  digital pins on the ATmega328P: **`D3`, `D5`, `D6`, `D9`, `D10`, `D11`**.
+  These 6 come in 3 pairs sharing one hardware timer each (`D5`/`D6`,
+  `D9`/`D10`, `D3`/`D11`) — each pin in a pair gets its own independent
+  duty cycle, but they share the same underlying PWM frequency. The other
+  8 digital pins have no timer wired to them and cannot do PWM at all;
+  `MODE <pin> PWM` on any of them returns `not-pwm-pin`.
 
 ## Commands
 
@@ -44,14 +51,16 @@ Firmware self-identification string, format `ID <name> v<version>`.
 Not meant to be machine-parsed — the host client doesn't use it. For
 interactive debugging via a terminal (e.g. `picocom`).
 
-### `MODE <pin> <IN|OUT|PULLUP>`
+### `MODE <pin> <IN|OUT|PULLUP|PWM>`
 
 → `OK` or `ERR <reason>`
 
 Configures a digital pin's direction. `pin` must be `D2`-`D13` (`D0`/`D1`
 rejected, `A*` rejected). `PULLUP` configures input with the internal
 pull-up resistor enabled (idle high, reads low when pulled to ground —
-standard Arduino `INPUT_PULLUP` semantics).
+standard Arduino `INPUT_PULLUP` semantics). `PWM` configures the pin for
+hardware PWM output — only valid on `D3`, `D5`, `D6`, `D9`, `D10`, `D11`
+(`not-pwm-pin` on any other pin); see `PWM` command below.
 
 Pins reset to unconfigured (high-impedance input) on every board reset;
 nothing is remembered across a reconnect.
@@ -77,7 +86,19 @@ Drives a digital pin. **Requires the pin to have already been configured
 `MODE <pin> OUT`** in the current connection — the firmware refuses to
 implicitly reconfigure a pin's direction from a `WRITE` call
 (`not-configured-output`). `A*` pins are rejected
-(`analog-fixed-input`).
+(`analog-fixed-input`). Rejects a pin currently in `PWM` mode the same
+way (`not-configured-output`) — `MODE` a pin `OUT` again first if you want
+to switch it back to plain digital.
+
+### `PWM <pin> <0-255>`
+
+→ `OK` or `ERR <reason>`
+
+Sets duty cycle on a pin already configured `MODE <pin> PWM`
+(`not-configured-pwm` otherwise). `0` is fully off, `255` is ~100% on,
+linear in between — matches classic Arduino `analogWrite()` scaling.
+Only valid on the 6 PWM-capable pins (see Pin naming above); non-PWM
+digital pins and `A*` are rejected the same way `MODE PWM` rejects them.
 
 ## Errors
 
@@ -85,14 +106,17 @@ All error replies are `ERR <reason>`, one lowercase-hyphenated token:
 
 | reason | meaning |
 |---|---|
-| `bad-command` | first token isn't `PING`/`ID`/`HELP`/`MODE`/`READ`/`WRITE` |
+| `bad-command` | first token isn't `PING`/`ID`/`HELP`/`MODE`/`READ`/`WRITE`/`PWM` |
 | `bad-args` | wrong number of tokens for the command |
 | `bad-pin` | pin token isn't a valid `D0`-`D13`/`A0`-`A5` |
-| `bad-mode` | third token of `MODE` isn't `IN`/`OUT`/`PULLUP` |
-| `bad-value` | third token of `WRITE` isn't `0`/`1` |
+| `bad-mode` | third token of `MODE` isn't `IN`/`OUT`/`PULLUP`/`PWM` |
+| `bad-value` | third token of `WRITE` isn't `0`/`1`, or `PWM`'s isn't `0`-`255` |
 | `reserved-uart` | pin is `D0` or `D1` |
-| `analog-fixed-input` | `MODE` or `WRITE` targeted an `A*` pin |
-| `not-configured-output` | `WRITE` targeted a pin not `MODE`'d `OUT` |
+| `analog-fixed-input` | `MODE`/`WRITE`/`PWM` targeted an `A*` pin |
+| `not-configured-output` | `WRITE` targeted a pin not `MODE`'d `OUT` (includes pins currently in `PWM` mode) |
+| `not-pwm-pin` | `MODE <pin> PWM` targeted a pin with no hardware timer (anything but `D3`/`D5`/`D6`/`D9`/`D10`/`D11`) |
+| `not-configured-pwm` | `PWM` targeted a pin not `MODE`'d `PWM` |
+| `pwm-config-failed` | internal: timer/channel setup failed (shouldn't happen if `not-pwm-pin` didn't already fire) |
 
 ## Example session
 
@@ -109,4 +133,10 @@ All error replies are `ERR <reason>`, one lowercase-hyphenated token:
 < OK 586
 > WRITE D2 1
 < ERR not-configured-output
+> MODE D5 PWM
+< OK
+> PWM D5 128
+< OK
+> MODE D13 PWM
+< ERR not-pwm-pin
 ```

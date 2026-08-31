@@ -35,9 +35,29 @@ const (
 	modeIn
 	modeInPullup
 	modeOut
+	modePWM
 )
 
 var digitalMode [14]mode
+
+// pwmChan holds the (Timer, channel) pair MODE PWM configured for a pin,
+// meaningful only when digitalMode[idx] == modePWM.
+var pwmChan [14]uint8
+
+// pwmTimer reports which of the Uno's 3 PWM timers owns a given digital pin
+// index, for the 6 pins that have hardware PWM at all (D3, D5, D6, D9, D10,
+// D11 -- the rest of D0-D13 have no timer wired to them on this chip).
+func pwmTimer(idx uint8) (machine.PWM, bool) {
+	switch idx {
+	case 5, 6:
+		return machine.Timer0, true // D5=PD5, D6=PD6
+	case 9, 10:
+		return machine.Timer1, true // D9=PB1, D10=PB2
+	case 3, 11:
+		return machine.Timer2, true // D3=PD3, D11=PB3
+	}
+	return machine.PWM{}, false
+}
 
 func main() {
 	uart := machine.Serial
@@ -99,6 +119,8 @@ func handle(uart *machine.UART, line string) {
 		cmdRead(uart, fields)
 	case "WRITE":
 		cmdWrite(uart, fields)
+	case "PWM":
+		cmdPWM(uart, fields)
 	default:
 		errReply(uart, "bad-command")
 	}
@@ -120,6 +142,27 @@ func cmdMode(uart *machine.UART, fields []string) {
 	}
 	if analog {
 		errReply(uart, "analog-fixed-input")
+		return
+	}
+	if fields[2] == "PWM" {
+		timer, ok := pwmTimer(idx)
+		if !ok {
+			errReply(uart, "not-pwm-pin")
+			return
+		}
+		// Default PWMConfig (Period: 0) picks a fixed period tuned for LEDs on
+		// all 3 timers -- see machine.PWM.Configure. Reconfiguring a timer
+		// that's already running its other channel is harmless: the default
+		// config is the same every time, so this is idempotent.
+		timer.Configure(machine.PWMConfig{})
+		ch, err := timer.Channel(digitalPins[idx])
+		if err != nil {
+			errReply(uart, "pwm-config-failed")
+			return
+		}
+		pwmChan[idx] = ch
+		digitalMode[idx] = modePWM
+		reply(uart, "OK")
 		return
 	}
 	var pc machine.PinConfig
@@ -203,13 +246,45 @@ func cmdWrite(uart *machine.UART, fields []string) {
 	reply(uart, "OK")
 }
 
+// cmdPWM sets the duty cycle (0-255, matching Arduino's analogWrite scale)
+// on a pin previously configured with MODE <pin> PWM.
+func cmdPWM(uart *machine.UART, fields []string) {
+	if len(fields) != 3 {
+		errReply(uart, "bad-args")
+		return
+	}
+	idx, analog, ok := parsePin(fields[1])
+	if !ok {
+		errReply(uart, "bad-pin")
+		return
+	}
+	if analog {
+		errReply(uart, "analog-fixed-input")
+		return
+	}
+	if digitalMode[idx] != modePWM {
+		errReply(uart, "not-configured-pwm")
+		return
+	}
+	v, ok := parseUint(fields[2])
+	if !ok || v > 255 {
+		errReply(uart, "bad-value")
+		return
+	}
+	timer, _ := pwmTimer(idx) // guaranteed ok: only reachable via a prior successful MODE PWM
+	timer.Set(pwmChan[idx], uint32(v))
+	reply(uart, "OK")
+}
+
 func help(uart *machine.UART) {
 	reply(uart, "PING")
 	reply(uart, "ID")
-	reply(uart, "MODE <D2-D13> <IN|OUT|PULLUP>")
+	reply(uart, "MODE <D2-D13> <IN|OUT|PULLUP|PWM>")
 	reply(uart, "READ <D0-D13|A0-A5>")
 	reply(uart, "WRITE <D2-D13> <0|1>")
+	reply(uart, "PWM <pin> <0-255>")
 	reply(uart, "(D0/D1 reserved for USB-serial; A0-A5 are ADC-only)")
+	reply(uart, "(PWM mode only valid on D3, D5, D6, D9, D10, D11)")
 }
 
 // parsePin decodes "D<n>" (n 0-13) or "A<n>" (n 0-5) into an index into

@@ -59,8 +59,8 @@ Needs `tinygo` + `avrdude` on PATH — both provided by `hwBench.enable` in
 `nix shell nixpkgs#tinygo nixpkgs#avrdude`. Flashing needs `dialout` group
 access to the port.
 
-Current build: **5516 bytes flash / 609 bytes RAM** — Uno has 32256/2048
-available, so there's plenty of headroom for growing the command set.
+Current build: **10397 bytes flash / 1244 bytes RAM** — Uno has 32256/2048
+available, so there's still plenty of headroom for growing the command set.
 
 ## Using the host client / CLI
 
