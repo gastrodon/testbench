@@ -7,6 +7,71 @@ bench can look at small things, not just the desk. Full research + design
 plan: [webcam-microscope-coupler.md](https://linear.app/gastrodon/document/webcam-microscope-coupler-lego-printed-collar-996d07bbeda7)
 (Obsidian: `~/notes/project/Lab/webcam-microscope-coupler.md`).
 
+> **Direction changed — much of the text below is superseded.** The build
+> is now lens-off *prime focus* (objective projects straight onto the bare
+> sensor), not an afocal eyepiece collar. See the
+> [design doc](https://linear.app/gastrodon/document/microscope-camera-design-doc-15a95f836b98)
+> and [model-analysis.md](model-analysis.md).
+
+## Previewing in the OpenSCAD GUI
+
+`optics/lib` must exist first — it is a symlink into the Nix store created
+by `nix develop`'s shellHook, and Nix garbage-collects it periodically. If
+OpenSCAD reports `Can't open include file 'lib/BOSL2/std.scad'`, that is
+all this is:
+
+```
+cd ~/code/testbench && nix develop   # recreates optics/lib, then exit if you like
+openscad optics/assembly.scad        # openscad is already on PATH
+```
+
+Include paths are relative to each `.scad` file, so the working directory
+you launch from does not matter.
+
+In the GUI, open **Window > Customizer**. `assembly.scad` exposes:
+
+| control | does |
+| -- | -- |
+| `focus_t` | 0..1 along the 20mm focus travel — slide it and the carrier climbs while the pinion spins in place |
+| `explode` | 0 = assembled, 1 = fully exploded along the assembly axes |
+| `animate_focus` | drive focus from **View > Animate** (`$t`) instead of the slider |
+
+To animate: tick `animate_focus`, open **View > Animate**, set FPS 10 and
+Steps 60. `$t` sweeps 0..1 and the mechanism cycles through its travel.
+
+Preview (F5) is the right mode here — colors are per-part and legible.
+A full render (F6) discards `color()` and comes out monochrome. Geometry
+validity is checked by `check.py`, not by looking, so there is no reason
+to F6 for review.
+
+Individual parts open the same way: `pcb_carrier.scad`,
+`objective_focus_mount.scad`, `focus_pinion.scad` (which lays its two
+printed parts out side by side for the bed).
+
+**One warning is expected and harmless:**
+
+```
+WARNING: Can't open include file 'lib/gears/gears.scad'.
+```
+
+That is vendored `Technic.scad` reaching for its own bundled gear library,
+which ships as an empty directory in the upstream repo. It only affects
+Technic's gear modules, which nothing here calls — the LEGO pins and every
+other part render normally. Verified: the assembly renders fine with this
+warning present.
+
+## Verifying geometry
+
+```
+nix develop --command python optics/check.py
+```
+
+Answers what a render cannot: does anything interfere, does the gear pair
+actually mesh, is every part watertight. It has caught real collisions that
+were invisible in every rendered view. Read
+[model-analysis.md](model-analysis.md) before trusting or extending it —
+especially the note that a FAIL warrants checking the checker first.
+
 ## Status: tooling verified, design not started
 
 Stage 0 (measure the eyepiece, confirm you own common Technic pins/beams) is

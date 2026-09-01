@@ -1,5 +1,22 @@
 {
   "nodes": {
+    "bosl2": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1788188533,
+        "narHash": "sha256-QXssGHSaFRR8ALVtn6xXfL1riG7Gc27BDNtTroQnWvE=",
+        "owner": "BelfrySCAD",
+        "repo": "BOSL2",
+        "rev": "fcfce7c763863d8e66d5f36a551d11129ec1a607",
+        "type": "github"
+      },
+      "original": {
+        "owner": "BelfrySCAD",
+        "repo": "BOSL2",
+        "rev": "fcfce7c763863d8e66d5f36a551d11129ec1a607",
+        "type": "github"
+      }
+    },
     "flake-utils": {
       "inputs": {
         "systems": "systems"
@@ -53,6 +70,7 @@
     },
     "root": {
       "inputs": {
+        "bosl2": "bosl2",
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs",
         "pela-blocks": "pela-blocks",

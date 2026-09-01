@@ -15,9 +15,16 @@
       url = "github:paulirotta/PELA-blocks/0e7dcc9df37e21bbf4e59dcd356259579bb91ba8";
       flake = false;
     };
+    # Threads (threading.scad) + gears/racks (gears.scad) for the
+    # prime-focus microscope build — real helical threads and a proper
+    # rack-and-pinion instead of hand-rolled geometry.
+    bosl2 = {
+      url = "github:BelfrySCAD/BOSL2/fcfce7c763863d8e66d5f36a551d11129ec1a607";
+      flake = false;
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils, technic-scad, pela-blocks }:
+  outputs = { self, nixpkgs, flake-utils, technic-scad, pela-blocks, bosl2 }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
@@ -29,6 +36,7 @@
           mkdir -p $out
           cp -r ${technic-scad} $out/Technic.scad
           cp -r ${pela-blocks} $out/PELA-blocks
+          cp -r ${bosl2} $out/BOSL2
         '';
 
         # A GOROOT gopls can use to resolve `machine` and its transitive
@@ -81,6 +89,22 @@
               ln -sfn "$TGR/src/runtime/$name" "$out/src/runtime/$name"
             done
           '';
+
+        # Mesh analysis for the optics parts: trimesh drives the queries,
+        # manifold3d is the boolean engine (trimesh ships no boolean
+        # backend of its own — without this, .intersection() has nothing
+        # to call). Lets optics/check.py answer "do these two parts
+        # interfere" instead of rendering a picture and squinting at it.
+        opticsPython = pkgs.python3.withPackages (ps: [
+          ps.trimesh
+          ps.manifold3d
+          ps.numpy
+          # trimesh's proximity queries (nearest.on_surface) import rtree
+          # and scipy lazily — absent, they fail at call time rather than
+          # import time, so they are not optional here.
+          ps.rtree
+          ps.scipy
+        ]);
 
         # One firmware image per device, mirroring host/cmd/ -- each is a
         # complete, standalone binary for the whole chip (these are never
@@ -140,6 +164,8 @@
             pkgs.openscad
             pkgs.esptool
             pkgs.usbutils
+            opticsPython
+            pkgs.imagemagick   # montage: canonical-view contact sheets
           ];
           shellHook = ''
             if [ ! -e optics/lib ]; then
