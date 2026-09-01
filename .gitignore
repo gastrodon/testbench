@@ -1,3 +1,5 @@
 *.hex
 /probe
 firmware/.gopls-goroot
+*.mp4
+*.gif
