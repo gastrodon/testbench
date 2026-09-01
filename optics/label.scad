@@ -20,6 +20,26 @@
 // Proximity is the association: a label sits beside its part and is read
 // off the sheet before anything is lifted.
 //
+// SLICE LABELS DIFFERENTLY FROM PARTS. Found on the first plate that
+// printed these: brim_width applies per OBJECT, and every glyph is its
+// own object, so a 3mm brim grows around each character, fills the
+// counters of 8, 6 and P, and bridges the gaps between letters. Measured
+// in that gcode's first layer, the label band held 683 points of
+// skirt/brim against 260 points of actual glyph outline — nearly three
+// times more packaging than letter.
+//
+// A label therefore needs brim_width = 0 and the skirt kept well away.
+// PrusaSlicer's CLI has no per-object settings (that needs a 3MF project
+// with per-object config), so the practical options are:
+//
+//   * slice the whole coupon plate with --brim-width 0, relying on the
+//     sheet for adhesion — fine for parts with broad flat footprints
+//     like these, and what to try first;
+//   * or run the labels as their own short job before the parts.
+//
+// Do NOT solve it by making the text bigger. Brim surrounds each glyph
+// at a fixed width regardless of size, so the counters still fill.
+//
 // FONTS: text() silently renders NOTHING when fontconfig finds no font,
 // with only a warning on stderr. The nix build sandbox has no fonts, so
 // flake.nix hands the derivation a fontconfig file. If a label ever comes
