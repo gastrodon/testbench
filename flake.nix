@@ -141,7 +141,8 @@
           firmware-probe = mkFirmware "probe";
           firmware-light-breathe = mkFirmware "light-breathe";
 
-          # STLs for every printable part, rendered reproducibly.
+          # STLs for every printable part, each already rotated into its
+          # print orientation so the slicer needs no manual fiddling.
           #   nix build .#optics-stl && ls result/
           optics-stl = pkgs.runCommand "testbench-optics-stl"
             { nativeBuildInputs = [ pkgs.openscad ]; }
@@ -149,29 +150,43 @@
               mkdir -p build $out
               cp ${./optics}/*.scad build/
               ln -s ${opticsLib} build/lib
-              for part in base_mount carrier pinion_gear pinion_knob fit_coupon; do
-                case $part in
-                  base_mount)  src=objective_focus_mount.scad; body="base_mount();" ;;
-                  carrier)     src=pcb_carrier.scad;           body="pcb_carrier();" ;;
-                  pinion_gear) src=focus_pinion.scad;          body="focus_gear();" ;;
-                  pinion_knob) src=focus_pinion.scad;          body="focus_knob();" ;;
-                  fit_coupon)  src=fit_coupon.scad;            body="" ;;
-                esac
-                if [ -z "$body" ]; then
-                  openscad -o $out/$part.stl build/$src
-                else
-                  cat > build/_$part.scad <<EOF
+
+              emit () {  # name, source file, body (already oriented)
+                cat > build/_$1.scad <<EOF
               include <params.scad>
               include <lib/BOSL2/std.scad>
               include <lib/BOSL2/gears.scad>
               include <lib/BOSL2/threading.scad>
               \$slop = 0.1;
-              use <$src>
-              $body
+              use <$2>
+              $3
               EOF
-                  openscad -o $out/$part.stl build/_$part.scad
-                fi
-              done
+                openscad -o $out/$1.stl build/_$1.scad
+              }
+
+              # base: floor on the bed, bore up — as modelled
+              emit base_mount objective_focus_mount.scad "base_mount();"
+
+              # carrier: PCB face DOWN, telescope tube UP. As modelled the
+              # tube hangs in -Z, so flip it.
+              emit carrier pcb_carrier.scad "pcb_carrier_printable();"
+
+              # pinion: ONE part now — knob, shaft, gear. Printed knob
+              # DOWN (28mm disc = bed adhesion) with the gear on top.
+              emit pinion focus_pinion.scad "focus_pinion_printable();"
+
+              # technic adapter: baseplate DOWN, pins UP — as modelled
+              openscad -o $out/technic_adapter.stl build/technic_adapter.scad
+
+              # test pieces
+              openscad -o $out/slide_coupon.stl build/slide_coupon.scad
+
+              # Coupons for the two open tolerance questions. Both are
+              # built from the SAME geometry as the real parts (clip_coupon
+              # literally intersects base_mount), so a pass transfers
+              # directly instead of only proving the coupon fits.
+              openscad -o $out/m12_coupon.stl build/m12_coupon.scad
+              openscad -o $out/clip_coupon.stl build/clip_coupon.scad
             '';
 
           optics-calibration = pkgs.runCommand "testbench-optics-calibration"
@@ -199,6 +214,13 @@
             pkgs.usbutils
             opticsPython
             pkgs.imagemagick   # montage: canonical-view contact sheets
+            # Slicing + inspection for the optics parts. prusa-slicer's
+            # CLI generates the gcode; prusa-gcodeviewer opens a sliced
+            # file to step through layer by layer, which is the only way
+            # to actually SEE a toolpath before committing the machine to
+            # it. CuraEngine was dropped from nixpkgs, so this is the
+            # supported CLI slicer here.
+            pkgs.prusa-slicer
           ];
           shellHook = ''
             if [ ! -e optics/lib ]; then

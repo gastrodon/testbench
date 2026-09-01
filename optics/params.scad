@@ -18,18 +18,28 @@ obj_thread_d = 9;                  // objective cell thread OD, mm
 obj_thread_engage = 3.25;          // thread engagement depth, mm
 obj_aperture = 3.4;                // front aperture, mm
 
-// MEASURED. This was the last assumption in the build and the one that
-// could have scrapped the base — a printed thread either matches the
-// cell's pitch or the cell will not go in. Measured as M9x0.75, which
-// happens to match the original guess; the value is unchanged but it is
-// now a fact rather than a plausible number.
-// Still worth a test fit before the long print: a printed thread carries
-// its own tolerance on top of a correct pitch.
-obj_thread_pitch = 0.75;
+// MEASURED BY TEST PRINT, which overruled a caliper reading.
+//
+// Calipers on the valley diameter said 0.75. A coupon printing 0.5 /
+// 0.75 / 1.0 side by side settled it: the cell threads cleanly into the
+// 0.5 block and not the 0.75 one. The caliper method was off by exactly
+// one standard size — at this scale, reading a thread's root diameter by
+// hand is not accurate enough to pick between adjacent standards.
+//
+// The same trap appeared on the camera's own M12 mount: measuring a
+// single crest suggested 0.25mm, while counting 18 crests over 9mm gives
+// 0.5 — and 0.5 is what it actually is. COUNT OVER A LENGTH; never
+// measure one peak.
+//
+// Keeping the 0.5 and 1.0 blocks as controls is what made this
+// recoverable. Printing only the "measured" value would have produced a
+// 7.5-hour, 21g base_mount that the objective simply would not enter,
+// and the failure would not have surfaced until final assembly.
+obj_thread_pitch = 0.5;
 
 // Depth of the threaded section: measured engagement plus lead-in. Lives
-// here rather than in the base part because fit_coupon.scad needs the
-// identical value — a coupon that tests a different depth tests nothing.
+// here rather than in the base part so any coupon testing this thread
+// gets the identical value — a coupon at a different depth tests nothing.
 obj_bore_depth = obj_thread_engage + 2;
 
 // chosen — rack-and-pinion focus mechanism (BOSL2 gears.scad)
@@ -50,7 +60,12 @@ gear_pressure_angle = 20;
 gear_thickness = 8;        // rack/pinion face width, mm
 pinion_teeth = 12;
 guide_rod_d = 4;           // smooth guide rod diameter the PCB carrier rides on, mm
-shaft_d_frame = 4;         // pinion axle: stock 4mm rod, carried in double shear
+// The pinion shaft is PRINTED as part of the pinion, not stock rod. It
+// was 4mm only because that is a stock size; nothing requires it now, so
+// it is 6mm — torsional section goes as d^3, making a printed shaft 3.4x
+// stronger for free. That matters because printed axis-vertical, torque
+// is carried by layer adhesion, which is the weak direction.
+shaft_d_frame = 6;
 
 // Knob diameter multiplies tactile fineness for free: the same angular
 // resolution at your fingertip covers proportionally less rotation on a
@@ -100,13 +115,11 @@ pinion_z = carrier_z_home - rack_engage_margin;  // grounded; never travels
 // pinion_y = rack_y - gear_dist(...) — computed where BOSL2 is available,
 // since params.scad is included before the library.
 
-// The pinion axle is stock 4mm rod, not a printed part. It must reach
-// through both yoke bearings and out past the knob:
-//   -10  clear of the -X bearing
-//     0  the gear
-//  +8.5  through the +X bearing
-//   +32  far face of the knob (22 standoff + 10 knob)
-axle_len = 44;
+// No axle_len: the shaft is integral to the pinion now. Gear, shaft and
+// knob all rotate together, so they were always one rigid body — the
+// separate rod only existed because closed bearing bores could not be
+// threaded past a 10.5mm gear. The snap-fit bearings open upward, so the
+// whole assembly drops in from above and the rod is unnecessary.
 
 // print fit
 wall = 2.4;                        // generic wall thickness, mm

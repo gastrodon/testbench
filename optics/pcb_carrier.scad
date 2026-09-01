@@ -120,4 +120,47 @@ module pcb_carrier() {
     focus_rack();
 }
 
+// TEST STUB: the PCB interface only, no tube.
+//
+// The full carrier is an 85mm tower and a 6h print; none of that is
+// needed to find out whether the board actually bolts on. This is the
+// face, the two screw bosses and the aperture — the entire PCB
+// interface — and nothing else.
+//
+// It also prints the right way up, which the full part currently does
+// not: with the tube gone, the face's z=0 side is completely flat, so
+// it sits on a solid 34x21 rectangle instead of balancing on two 5.4mm
+// bosses. Bosses point up, away from the bed, as they do in service.
+module pcb_face_stub() {
+    difference() {
+        union() {
+            translate([0, 0, face_t / 2])
+                cuboid([carrier_face_w, carrier_face_d, face_t],
+                       rounding = 4, edges = "Z");
+            for (x = [-holder_screw_span / 2, holder_screw_span / 2])
+                translate([x, 0, 0])
+                    cylinder(d = boss_d, h = face_t + boss_h);
+        }
+        translate([0, 0, -1])
+            cylinder(d = aperture_d, h = face_t + boss_h + 2);
+        for (x = [-holder_screw_span / 2, holder_screw_span / 2])
+            translate([x, 0, -1])
+                cylinder(d = screw_hole_d, h = face_t + boss_h + 2);
+        cable_relief();
+    }
+}
+
+// Print orientation: PCB face DOWN on the bed, telescope tube UP — the
+// tube then prints as a plain vertical cylinder with no overhang, and
+// the face's flat side (which the board bolts to) is the bed-side
+// surface, which is the flattest one a printer makes.
+//
+// The flip lives here rather than in the build so the offset uses this
+// file's own boss height instead of a magic number copied elsewhere.
+module pcb_carrier_printable() {
+    translate([0, 0, face_t + boss_h])
+        rotate([180, 0, 0])
+            pcb_carrier();
+}
+
 pcb_carrier();

@@ -3,3 +3,5 @@
 firmware/.gopls-goroot
 *.mp4
 *.gif
+result
+result-*

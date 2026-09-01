@@ -326,7 +326,11 @@ def check_integrity(workdir: Path) -> bool:
     parts = [
         ("base_mount", "use <objective_focus_mount.scad>\n", "base_mount();", 1),
         ("carrier", "use <pcb_carrier.scad>\n", "pcb_carrier();", 1),
-        ("pinion", "use <focus_pinion.scad>\n", "focus_pinion();", 3),
+        # one body now: gear, shaft and knob are a single printed part.
+        # They always rotated together; the separate rod only existed
+        # because closed bearing bores could not be threaded past the
+        # gear, and the snap-fit bearings removed that constraint.
+        ("pinion", "use <focus_pinion.scad>\n", "focus_pinion();", 1),
     ]
     ok_all = True
     meshes = {}

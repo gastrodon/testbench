@@ -28,7 +28,7 @@ include <lib/Technic.scad/Technic.scad>
 
 $slop = 0.1; // FDM print clearance for the internal thread mask, mm; tune per-printer
 
-// obj_bore_depth comes from params.scad — fit_coupon.scad shares it
+// obj_bore_depth comes from params.scad, shared with the thread coupons
 floor_t = obj_bore_depth + 1.5;    // base floor carrying the objective thread
 
 // Sleeve runs up to just below the rack's lowest position (z=59.4 at
@@ -53,11 +53,15 @@ breakout_z = 20;   // explicit, not sleeve_len/2 — the sleeve length changed o
 // so the arms sit outside |x|=4 and the web sits beyond y=-23.47.
 pinion_y = rack_y - gear_dist(mod = gear_mod, teeth1 = pinion_teeth,
                               teeth2 = 0, pressure_angle = gear_pressure_angle);
-rack_slot_half = gear_thickness / 2 + 1.5;   // 1.5mm clearance per side
+// 3mm per side, not 1.5. The pinion's gear sits on a 45-degree cone that
+// flares from the 6mm shaft out to the 10.5mm gear OD, which needs
+// (10.5-6)/2 = 2.25mm of axial room beside the gear face. At 1.5mm the
+// cone buried itself in the arm — a 2.3mm^3 collision the check caught.
+rack_slot_half = gear_thickness / 2 + 3;
 arm_t = 3;
 arm_x = rack_slot_half + arm_t / 2;          // arm centreline
 bearing_d = shaft_d_frame + 0.35;            // running clearance on the shaft
-bearing_boss_d = 11;
+bearing_boss_d = shaft_d_frame + 7;   // follows the shaft, not a fixed 11
 // The strut is ONE straight member. It leaves the bearing boss and runs
 // down at a slight lean to land on the sleeve at foot_z — a little above
 // where the base ends, not at its corner. That gives a single obtuse
@@ -67,7 +71,11 @@ bearing_boss_d = 11;
 foot_z = 12;               // where the strut lands, just above the base end
 foot_h = 11;               // footprint along the tube axis
 foot_y_out = -13.5;        // outboard edge of the foot
-foot_y_in = -7.5;          // inboard edge: clear of the bore at x=arm_x
+// Moving the arms outboard puts the foot on a thinner part of the round
+// wall: at x=8.5 the wall spans y=-8.04..-3.77, so a foot stopping at
+// -7.5 would catch only 0.54mm of it. -5.5 keeps 2.5mm of real overlap
+// and still clears the bore by 1.7mm.
+foot_y_in = -5.5;
 bridge_drop = 11;          // bridge sits below the gear, back stays open
 bridge_d = 9;
 // Snap-fit bearing: the bore opens upward through a throat slightly
@@ -110,49 +118,47 @@ module base_floor_solid() {
     cyl(d = sleeve_od, h = floor_t, anchor = BOTTOM, chamfer1 = 0.8);
 }
 
-// --- Technic pin breakout ---------------------------------------------
-// Sized to the real pin, not guessed: a Technic pin_half(length=1) is
-// 7.8mm of body plus a 0.7mm collar, so the MOUNT only has to add a few
-// mm of padding behind it. The old version stood the plate 10.4mm off
-// the tube before the pin even started — nearly three times the pin's
-// own reach, cantilevered for no reason.
-//
-// Each pin gets its own conical flare rather than sharing one slab.
-// The flare spreads load into the pad gradually and prints without
-// support, since a cone's own slope is self-supporting all the way
-// round.
-pad_t = 3.4;                     // pad thickness over the sleeve wall
-pad_h = technic_pin_spacing + 12;
-pad_w = technic_pin_spacing + 11;
-flare_len = 2.2;                 // cone length, plate face -> pin root
-flare_root_d = 11;               // wide end, on the pad
-flare_tip_d = 6.2;               // narrow end, just over the pin collar
+// --- Technic adapter mounting pad -------------------------------------
+// The pins themselves now live on technic_adapter.scad, which bolts on
+// here. All this part provides is a flat, square pad with a pilot hole —
+// so the adapter's flat face has something true to sit against instead
+// of a round tube.
+pad_t = 4.0;                     // pad stands off the sleeve wall
+pad_face_w = technic_pin_spacing + 14;
+pad_face_h = 15;
+m3_pilot = 2.6;                  // self-tapping M3 bites into this
+m3_pilot_depth = 8;
 
 module technic_breakout_solid() {
-    pad_x = sleeve_od / 2 - 1.2;          // real overlap into the wall
-    // Pad: a saddle sharing the sleeve's curvature so it blends in
-    // rather than butting onto a round wall.
-    intersection() {
-        difference() {
-            cylinder(d = sleeve_od + 2 * pad_t, h = pad_h, center = true);
-            translate([0, 0, -pad_h])
-                cylinder(d = sleeve_id, h = pad_h * 3, center = true);
+    // Flat pad, blended into the round wall with a hull so there is no
+    // abrupt section change at the joint.
+    pad_x = sleeve_od / 2 + pad_t;
+    hull() {
+        // saddle footprint on the sleeve
+        intersection() {
+            difference() {
+                cylinder(d = sleeve_od + 1.0, h = pad_face_h + 8,
+                         center = true);
+                translate([0, 0, -pad_face_h])
+                    cylinder(d = sleeve_id, h = pad_face_h * 4, center = true);
+            }
+            translate([sleeve_od / 4, 0, 0])
+                cube([sleeve_od / 2, pad_face_w, pad_face_h + 8],
+                     center = true);
         }
-        translate([(sleeve_od / 2 + pad_t) / 2, 0, 0])
-            cube([sleeve_od / 2 + pad_t, pad_w, pad_h], center = true);
+        // the flat face itself
+        translate([pad_x - 1.2, 0, 0])
+            cuboid([2.4, pad_face_w, pad_face_h], rounding = 2.5,
+                   edges = "X");
     }
+}
 
-    for (y = [-technic_pin_spacing / 2, technic_pin_spacing / 2]) {
-        // conical flare, then the pin on its tip
-        translate([pad_x, y, 0])
-            rotate([0, 90, 0])
-                cylinder(d1 = flare_root_d, d2 = flare_tip_d,
-                         h = flare_len + 1.2);
-        translate([pad_x + flare_len + 1.2, y, 0])
-            rotate([0, 90, 0])
-                translate([0, 0, -0.6])
-                    technic_pin_half(length = 1, friction = true);
-    }
+module technic_pad_cuts() {
+    // Pilot for the adapter's M3, drilled into the flat face
+    translate([sleeve_od / 2 + pad_t + 1, 0, 0])
+        rotate([0, 90, 0])
+            translate([0, 0, -m3_pilot_depth - 1])
+                cylinder(d = m3_pilot, h = m3_pilot_depth + 1.2);
 }
 
 module pinion_yoke_solid() {
@@ -267,6 +273,9 @@ module base_mount() {
         objective_thread_bore();
 
         pinion_yoke_cuts();
+
+        translate([0, 0, breakout_z])
+            technic_pad_cuts();
     }
 }
 
