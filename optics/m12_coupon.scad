@@ -25,9 +25,9 @@ use <label.scad>
 
 $slop = 0.1;
 
-// This plate slices at 0.10mm. See label.scad — the label must be exactly
-// one layer, so this number tracks the profile, not the other way round.
-label_h = 0.10;
+// See label.scad: 0.2 is one layer at the coarsest height these parts
+// would ever print at, so the glyphs always straddle a slice plane.
+label_h = 0.2;
 
 thread_len = 9;             // full engagement depth of the holder
 light_bore = 9;             // clear aperture through the boss

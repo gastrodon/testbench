@@ -25,8 +25,8 @@ use <label.scad>
 
 $slop = 0.1;
 
-// Prints alongside the mechanical-fit parts at 0.15mm.
-label_h = 0.15;
+// One layer at 0.2, and at least one at anything finer. See label.scad.
+label_h = 0.2;
 
 // Short sections of each, so you can feel the fit without printing 80mm
 // of tube.

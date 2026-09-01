@@ -25,8 +25,8 @@ use <label.scad>
 
 $slop = 0.1;
 
-// This plate slices at 0.15mm; the label is exactly one layer of it.
-label_h = 0.15;
+// One layer at 0.2, and at least one at anything finer. See label.scad.
+label_h = 0.2;
 
 // Keep everything from just below the tie bridge up to the ceiling.
 slice_bottom = 68;

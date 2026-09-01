@@ -10,11 +10,16 @@
 // something — hence the label TAB below, which is deliberately out of
 // every load and seating path.
 //
-// h MUST equal the plate's layer height, and is passed explicitly rather
-// than defaulted: the coupons print on two different profiles (0.10mm for
-// the M12 threads, 0.15mm for the mechanical fits) and a label that is
-// 1.5 layers tall gets rounded by the slicer into something neither
-// legible nor predictable.
+// h should be at least the COARSEST layer height the part might print at,
+// not the one it happens to be sliced at today. The slicer takes each
+// layer's cross-section at its midpoint (print_z - height/2), so a slab
+// thinner than a layer survives only if that plane happens to fall inside
+// it. A 0.10mm label did survive a 0.15mm slice here, but only because
+// the tab's 3.0mm top put the plane at 3.075 — move the tab thickness a
+// fraction and the same label vanishes with no warning.
+//
+// 0.2 straddles a slice plane at every height these parts would use, so
+// the label stops depending on where the planes happen to land.
 //
 // FONTS: text() silently renders NOTHING when fontconfig finds no font,
 // with only a warning on stderr. The nix build sandbox has no fonts by
