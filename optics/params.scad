@@ -93,8 +93,12 @@ pinion_z = carrier_z_home - rack_engage_margin;  // grounded; never travels
 // since params.scad is included before the library.
 
 // The pinion axle is stock 4mm rod, not a printed part. It must reach
-// through both yoke bearings and out to the knob.
-axle_len = 62;
+// through both yoke bearings and out past the knob:
+//   -10  clear of the -X bearing
+//     0  the gear
+//  +8.5  through the +X bearing
+//   +32  far face of the knob (22 standoff + 10 knob)
+axle_len = 44;
 
 // print fit
 wall = 2.4;                        // generic wall thickness, mm

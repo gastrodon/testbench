@@ -36,10 +36,13 @@ set_screw_d = 2.6;          // self-tapping M3 pilot, radial, locks part to shaf
 knob_h = 10;                // knob_d comes from params.scad
 flute_n = 16;
 
-// Distance from the gear's midplane out to the knob's inner face, along
-// the shaft. Must clear the carrier plate's X half-width plus margin.
-plate_half_x = (pcb[1] + 8) / 2;
-knob_standoff = plate_half_x + 6;
+// Distance from the gear's midplane out to the knob's inner face. It
+// only has to clear the CARRIER FACE, which is now a 34mm bar rather
+// than the old 63mm full-width plate — so the knob comes in from 37.5mm
+// to 22mm and the axle shortens with it. A shorter axle is a stiffer
+// axle: overhang beyond the outer bearing is a cantilever, and halving
+// it cuts the deflection at the knob by roughly eight.
+knob_standoff = carrier_face_w / 2 + 5;
 
 pinion_mesh_dist = gear_dist(mod = gear_mod, teeth1 = pinion_teeth, teeth2 = 0,
                              pressure_angle = gear_pressure_angle);

@@ -58,13 +58,22 @@ arm_t = 3;
 arm_x = rack_slot_half + arm_t / 2;          // arm centreline
 bearing_d = shaft_d_frame + 0.35;            // running clearance on the shaft
 bearing_boss_d = 11;
-// The web has to OVERLAP the arms, which reach y=-25.8 at the bearing
-// boss. Pushed out to -32 to clear the gear it stopped touching them and
-// became a separate floating body — still watertight, still passing
-// every interference check, connected to nothing. Gear clearance is the
-// gear-pocket cut's job, not the web's position.
-web_y = -27;
-web_t = 5;
+arm_root_z = 26;           // centre of the arm's root pad on the sleeve
+arm_root_h = 44;           // tall root: shallow, obtuse meeting with the base
+root_y_out = rack_y - 3;   // outboard edge of the root pad
+root_y_in = -7.0;          // inboard edge: clear of the bore at x=arm_x
+bridge_drop = 11;          // bridge sits below the gear, back stays open
+bridge_d = 9;
+// Snap-fit bearing: the bore opens upward through a throat slightly
+// narrower than the axle, so the gear+axle drops in from above and
+// clicks home instead of needing to be threaded through two closed
+// bores with the gear balanced between them.
+snap_throat = shaft_d_frame - 0.3;
+
+// Nothing in the frame may reach the carrier's underside, which sits at
+// carrier_z_home and travels UP from there — so the home position is the
+// worst case, not the extended one.
+yoke_ceiling = carrier_z_home - 1.5;
 
 module objective_thread_bore() {
     // Real printed 9mm thread, not a self-tapping guess. Pitch is
@@ -92,92 +101,90 @@ module base_floor_solid() {
     // module. Subtracting locally and then unioning something solid over
     // it left the floor completely closed — no light path at all, and
     // nothing flagged it because a blocked bore interferes with nothing.
-    cylinder(d = sleeve_od, h = floor_t);
+    cyl(d = sleeve_od, h = floor_t, anchor = BOTTOM, chamfer1 = 0.8);
 }
 
-// --- Technic pin breakout geometry ---
-// A flat tab butted onto a round tube is both a stress riser (abrupt
-// section change, right at the layer lines) and an unsupported overhang.
-// Instead: a saddle pad that wraps the tube and flares smoothly out to
-// the pin plate via hull(), so section change is gradual and the flare's
-// own slope prints without support.
-pad_h = 28;                // saddle height along the tube axis, mm
-pad_arc_w = technic_pin_spacing + 14;  // saddle width across the tube, mm
-plate_t = 3.4;             // pin plate thickness, mm
-plate_h = 12;              // pin plate height, mm
-plate_w = technic_pin_spacing + 7;
-reach = 7;                 // plate standoff from the tube surface, mm
-// flare slope, from horizontal — must stay >45 to print unsupported
-flare_deg = atan2((pad_h - plate_h) / 2, reach);
+// --- Technic pin breakout ---------------------------------------------
+// Sized to the real pin, not guessed: a Technic pin_half(length=1) is
+// 7.8mm of body plus a 0.7mm collar, so the MOUNT only has to add a few
+// mm of padding behind it. The old version stood the plate 10.4mm off
+// the tube before the pin even started — nearly three times the pin's
+// own reach, cantilevered for no reason.
+//
+// Each pin gets its own conical flare rather than sharing one slab.
+// The flare spreads load into the pad gradually and prints without
+// support, since a cone's own slope is self-supporting all the way
+// round.
+pad_t = 3.4;                     // pad thickness over the sleeve wall
+pad_h = technic_pin_spacing + 12;
+pad_w = technic_pin_spacing + 11;
+flare_len = 2.2;                 // cone length, plate face -> pin root
+flare_root_d = 11;               // wide end, on the pad
+flare_tip_d = 6.2;               // narrow end, just over the pin collar
 
 module technic_breakout_solid() {
-    // Saddle: an annular wedge sharing the sleeve's own wall, so it
-    // blends into the tube instead of sitting on it. Inner radius is the
-    // bore radius, so it can never encroach on the light path.
-    saddle_od = sleeve_od + 1.2;   // slight proud bulge, reads as a fillet
-    module saddle() {
-        intersection() {
-            difference() {
-                cylinder(d = saddle_od, h = pad_h, center = true);
-                translate([0, 0, -pad_h])
-                    cylinder(d = sleeve_id, h = pad_h * 3, center = true);
-            }
-            translate([saddle_od / 4, 0, 0])
-                cube([saddle_od / 2, pad_arc_w, pad_h], center = true);
+    pad_x = sleeve_od / 2 - 1.2;          // real overlap into the wall
+    // Pad: a saddle sharing the sleeve's curvature so it blends in
+    // rather than butting onto a round wall.
+    intersection() {
+        difference() {
+            cylinder(d = sleeve_od + 2 * pad_t, h = pad_h, center = true);
+            translate([0, 0, -pad_h])
+                cylinder(d = sleeve_id, h = pad_h * 3, center = true);
         }
+        translate([(sleeve_od / 2 + pad_t) / 2, 0, 0])
+            cube([sleeve_od / 2 + pad_t, pad_w, pad_h], center = true);
     }
 
-    module pin_plate() {
-        translate([sleeve_od / 2 + reach, 0, 0])
-            cuboid([plate_t, plate_w, plate_h], rounding = 2.5, edges = "X");
-    }
-
-    // hull() blends saddle -> plate into one continuous buttress; no
-    // tangent contact, no abrupt corner, nothing to concentrate stress.
-    hull() { saddle(); pin_plate(); }
-
-    for (y = [-technic_pin_spacing / 2, technic_pin_spacing / 2])
-        translate([sleeve_od / 2 + reach + plate_t / 2, y, 0])
+    for (y = [-technic_pin_spacing / 2, technic_pin_spacing / 2]) {
+        // conical flare, then the pin on its tip
+        translate([pad_x, y, 0])
             rotate([0, 90, 0])
-                translate([0, 0, -1])   // real overlap into the plate
+                cylinder(d1 = flare_root_d, d2 = flare_tip_d,
+                         h = flare_len + 1.2);
+        translate([pad_x + flare_len + 1.2, y, 0])
+            rotate([0, 90, 0])
+                translate([0, 0, -0.6])
                     technic_pin_half(length = 1, friction = true);
+    }
 }
 
 module pinion_yoke_solid() {
-    // Each arm: hulled from a pad on the sleeve up to the bearing boss,
-    // giving a tapered strut with no abrupt section change. The pad
-    // starts at y=-9 so it overlaps the sleeve wall (surface at y=-9.7 at
-    // this x) while staying clear of the sliding inner tube, whose
-    // surface at x=+/-6.5 is only y=-6.2.
+    // OPEN BACK. The arms root into the sleeve and rise to the bearings
+    // with nothing behind the gear — you can get a finger and a hex key
+    // in there, and the gear is visible while setting it. The closed web
+    // that used to span the back added stiffness but walled the
+    // mechanism in; a low bridge UNDER the gear ties the arms instead,
+    // which resists splay without blocking access.
     for (s = [-1, 1]) {
         translate([s * arm_x, 0, 0]) {
             hull() {
-                // pad, straddling the sleeve wall: reaches in to y=-8 for
-                // real overlap (wall surface is y=-9.7 at this x) while
-                // staying clear of the sliding inner tube at y=-6.2
-                translate([-arm_t / 2, rack_y - 2, sleeve_len - 30])
-                    cube([arm_t, abs(rack_y) - 6, 24]);
-                // bearing boss
+                // Long root, low on the sleeve. Extending the strut down
+                // like this lets it meet the base at a shallow, obtuse
+                // angle instead of standing off it in two right-angle
+                // steps — smoother load path and no overhang to bridge.
+                // The pad must overlap the sleeve WALL without reaching
+                // into the bore. At x=+/-arm_x the bore surface is only
+                // y=-6.1, so a pad running to y=+1 (as an earlier version
+                // did) sits squarely in the carrier tube's path — a
+                // 3.1mm^3 collision the interference check caught.
+                translate([0, (root_y_out + root_y_in) / 2, arm_root_z])
+                    cuboid([arm_t, root_y_in - root_y_out, arm_root_h],
+                           rounding = 2.5, edges = "X");
                 translate([-arm_t / 2, pinion_y, pinion_z])
                     rotate([0, 90, 0])
                         cylinder(d = bearing_boss_d, h = arm_t);
             }
         }
     }
-    // Back web ties the arms together. Without it the two arms are
-    // independent cantilevers and the axle can still splay.
+    // Bridge under the gear: ties the two arms without closing the back.
     hull() {
-        translate([-(arm_x + arm_t / 2), web_y, pinion_z - 14])
-            cube([2 * (arm_x + arm_t / 2), web_t, 21]);
-        translate([-(arm_x + arm_t / 2), web_y + 6, sleeve_len - 14])
-            cube([2 * (arm_x + arm_t / 2), web_t, 8]);
+        for (s = [-1, 1])
+            translate([s * arm_x, pinion_y, pinion_z - bridge_drop])
+                rotate([0, 90, 0])
+                    cylinder(d = bridge_d, h = arm_t, center = true);
     }
 }
-
-// Nothing in the frame may reach the carrier plate's underside, which
-// sits at carrier_z_home and travels UP from there — so the home
-// position is the worst case, not the extended one.
-yoke_ceiling = carrier_z_home - 1.5;
 
 module pinion_yoke_cuts() {
     // Rack travel slot: the swept volume of the rack across the whole
@@ -196,10 +203,31 @@ module pinion_yoke_cuts() {
         rotate([0, 90, 0])
             cylinder(d = bearing_d, h = 2 * (arm_x + arm_t));
 
-    // Trim everything above the carrier plate's underside. Cheaper and
-    // more robust than sizing each feature to clear it individually.
+    // Snap throat: a slot from each bore straight up through the boss,
+    // narrower than the axle so it holds once seated. Chamfered at the
+    // mouth so the rod has something to wedge against on the way in
+    // rather than a square lip to catch on.
+    for (sgn = [-1, 1])
+        translate([sgn * arm_x, pinion_y, pinion_z]) {
+            translate([-arm_t / 2 - 0.1, -snap_throat / 2, 0])
+                cube([arm_t + 0.2, snap_throat, bearing_boss_d]);
+            translate([-arm_t / 2 - 0.1, 0, bearing_boss_d / 2 - 0.6])
+                rotate([0, 90, 0])
+                    cylinder(d1 = snap_throat, d2 = snap_throat + 2.6,
+                             h = arm_t + 0.2);
+        }
+
+    // Trim everything above the carrier's underside, then break the
+    // resulting sharp top edge. A guillotine cut leaves a knife edge
+    // that prints badly and is unpleasant to handle.
     translate([-60, -60, yoke_ceiling])
         cube([120, 120, 60]);
+    // NOTE: an edge-breaking cone was tried here and removed. Centred on
+    // the boss at the ceiling it reached +/-6.35mm in Y at the bore's own
+    // height — wider than the 5.5mm boss — and silently deleted the
+    // entire bearing. The ceiling leaves a flat horizontal face, which
+    // prints fine and needs no chamfer; the features that actually
+    // wanted softening are the rims and the bore lead-in, done above.
 }
 
 module base_mount() {
@@ -208,7 +236,11 @@ module base_mount() {
     // bore first would let the flare bridge across the light path.
     difference() {
         union() {
-            cylinder(d = sleeve_od, h = sleeve_len);
+            // Chamfered rims top and bottom. A square bottom edge is
+            // where elephant foot shows worst; a square top rim is what
+            // the carrier tube has to be guided past on assembly.
+            cyl(d = sleeve_od, h = sleeve_len, anchor = BOTTOM,
+                chamfer1 = 0.8, chamfer2 = 1.2);
             base_floor_solid();
             translate([0, 0, breakout_z])
                 technic_breakout_solid();
@@ -220,6 +252,9 @@ module base_mount() {
         // carrier is positioned by the rack and pinion, not pinched.
         translate([0, 0, floor_t])
             cylinder(d = sleeve_id, h = sleeve_len);
+        // lead-in so the carrier tube self-centres instead of catching
+        translate([0, 0, sleeve_len - 1.6])
+            cylinder(d1 = sleeve_id, d2 = sleeve_id + 3.2, h = 1.7);
 
         // Objective thread + its clear optical path, subtracted LAST so
         // nothing unioned above can fill it back in.

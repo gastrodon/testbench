@@ -346,9 +346,41 @@ def check_integrity(workdir: Path) -> bool:
                       f"bbox {b.bounds[0].round(1)} .. {b.bounds[1].round(1)}")
     print()
 
+    # Does the bearing actually EXIST? A running-fit distance check
+    # cannot tell a real bore from a deleted one: with the boss removed
+    # entirely, nearby arm material still returned a plausible 0.175mm
+    # gap and the pair passed. An over-large edge chamfer silently
+    # deleted both bosses exactly this way. So probe for solid material
+    # in a ring around the bore axis, in each arm.
+    base = meshes["base_mount"]
+    py = scad_value("rack_y - gear_dist(mod=gear_mod, teeth1=pinion_teeth,"
+                    " teeth2=0, pressure_angle=gear_pressure_angle)")
+    pz = scad_value("pinion_z")
+    ax = scad_value("arm_x", includes=["objective_focus_mount.scad"])
+    bore_r = scad_value("bearing_d", includes=["objective_focus_mount.scad"]) / 2
+    ring_r = bore_r + 1.4
+    for sgn in (-1, 1):
+        angles = np.arange(0, 360, 15)
+        pts = np.column_stack([
+            np.full_like(angles, sgn * ax, dtype=float),
+            py + ring_r * np.cos(np.radians(angles)),
+            pz + ring_r * np.sin(np.radians(angles)),
+        ])
+        solid = base.contains(pts)
+        # the snap throat is a deliberate gap at the top, so not every
+        # sample can be solid — but most of the ring must be
+        frac = solid.mean()
+        ok = frac >= 0.6
+        ok_all &= ok
+        centre_open = not base.contains(np.array([[sgn * ax, py, pz]]))[0]
+        ok_all &= centre_open
+        print(f"  bearing x={sgn * ax:+.1f}: {frac * 100:.0f}% of the ring is solid, "
+              f"bore centre {'open' if centre_open else 'BLOCKED'}  "
+              f"{'PASS' if ok and centre_open else 'FAIL'}")
+    print()
+
     # The light path: march up the optical axis through the base. Any
     # sample inside the solid means the bore is closed.
-    base = meshes["base_mount"]
     zs = np.arange(-1.0, base.bounds[1][2] + 1.0, 0.25)
     axis = np.column_stack([np.zeros_like(zs), np.zeros_like(zs), zs])
     inside = base.contains(axis)

@@ -65,8 +65,11 @@ module mounting_face() {
 module carrier_tube() {
     // Hangs down from the face into the base sleeve.
     difference() {
+        // Chamfer the tube's free end: it is the leading edge entering
+        // the base bore, and a square lip catches on the lead-in.
         translate([0, 0, -tube_len])
-            cylinder(d = tube_od, h = tube_len + 0.01);
+            cyl(d = tube_od, h = tube_len + 0.01, anchor = BOTTOM,
+                chamfer1 = 1.0);
         translate([0, 0, -tube_len - 1])
             cylinder(d = tube_id, h = tube_len + 2);
     }
