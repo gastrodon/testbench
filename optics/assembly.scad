@@ -82,7 +82,11 @@ $slop = 0.1;
 // Each part moves along the axis it is actually assembled along, so the
 // exploded view reads as an assembly instruction rather than a scatter.
 ex_carrier = explode * 60;    // carrier (face + tube) lifts out, +Z
-ex_pinion  = explode * 38;    // pinion withdraws along its own axis, +X
+// NEGATIVE. rotate([0,90,0]) maps the pinion's local +Z to assembly +X,
+// and the knob sits at local -Z — so the knob is the -X end. Exploding
+// +X drove the pinion INTO the assembly, knob first, crossing the
+// carrier. It has to withdraw the way it comes apart in the hand.
+ex_pinion  = explode * -38;   // pinion withdraws knob-first, -X
 
 color("SteelBlue")
     base_mount();

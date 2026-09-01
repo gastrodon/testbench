@@ -73,7 +73,7 @@ carrier_z = carrier_z_home + travel;
 // pinion_z: params.scad. GROUNDED — must not depend on travel.
 
 ex_carrier = explode * 60;
-ex_pinion  = explode * 38;
+ex_pinion  = explode * -38;   // knob-first, away from the assembly (see assembly.scad)
 
 // Spin about the optical axis, centred on the assembly's mid-height so
 // the model does not wander in frame.
