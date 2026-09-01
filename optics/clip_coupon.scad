@@ -21,8 +21,12 @@ include <lib/BOSL2/std.scad>
 include <lib/BOSL2/gears.scad>
 include <lib/BOSL2/threading.scad>
 use <objective_focus_mount.scad>
+use <label.scad>
 
 $slop = 0.1;
+
+// This plate slices at 0.15mm; the label is exactly one layer of it.
+label_h = 0.15;
 
 // Keep everything from just below the tie bridge up to the ceiling.
 slice_bottom = 68;
@@ -55,6 +59,11 @@ module clip_coupon() {
         translate([-rack_slot_half_pub, rack_y - 4, slice_bottom - 1])
             cube([2 * rack_slot_half_pub, 8, foot_t + 2]);
     }
+    // What this coupon is and what throat it carries, on the far edge of
+    // the foot where the arms cannot reach it.
+    translate([0, rack_y - 12 - foot_pad, slice_bottom])
+        label_tab(str("CLIP ", snap_throat_pub), label_h, foot_t,
+                  size = 3.5, dir = -1);
 }
 
 // objective_focus_mount.scad's internals are not exported by use<>, so
@@ -63,6 +72,7 @@ module clip_coupon() {
 arm_t_pub = 3;
 rack_slot_half_pub = gear_thickness / 2 + 3;
 arm_x_pub = rack_slot_half_pub + arm_t_pub / 2;
+snap_throat_pub = shaft_d_frame - 0.3;
 
 translate([0, 0, -slice_bottom])
     clip_coupon();

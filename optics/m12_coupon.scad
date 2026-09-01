@@ -21,8 +21,13 @@
 include <params.scad>
 include <lib/BOSL2/std.scad>
 include <lib/BOSL2/threading.scad>
+use <label.scad>
 
 $slop = 0.1;
+
+// This plate slices at 0.10mm. See label.scad — the label must be exactly
+// one layer, so this number tracks the profile, not the other way round.
+label_h = 0.10;
 
 thread_len = 9;             // full engagement depth of the holder
 light_bore = 9;             // clear aperture through the boss
@@ -30,10 +35,13 @@ flange_d = 22;              // something to grip while turning it in
 flange_t = 3;
 gap = 30;
 
-// nominal, and 0.2 under for print bulge
-test_diameters = [lens_thread_d, lens_thread_d - 0.2];
+// Nominal, and 0.2 under for print bulge. The label is written out rather
+// than derived with str(d): OpenSCAD prints 11.88-0.2 as 11.680000000000001,
+// and a label is worthless if it is not the number you would look for.
+test_bosses = [[lens_thread_d,       "11.88"],
+               [lens_thread_d - 0.2, "11.68"]];
 
-module m12_boss(d) {
+module m12_boss(d, txt) {
     difference() {
         union() {
             cylinder(d = flange_d, h = flange_t);
@@ -46,18 +54,18 @@ module m12_boss(d) {
         translate([0, 0, -1])
             cylinder(d = light_bore, h = flange_t + thread_len + 2);
     }
-    // a flat on the flange so you can tell the two apart by feel, and
-    // so the undersized one is identifiable after they are both off the
-    // bed and look identical
-    if (d < lens_thread_d)
-        translate([flange_d / 2 - 2, -5, 0])
-            cube([3, 10, flange_t]);
+    // The diameter, in millimetres, written on the part. The flange
+    // faces are both spoken for — the top may seat against the camera's
+    // holder and the bottom is a 9mm hole through a 22mm washer — so the
+    // label gets its own tab where nothing bears on it.
+    translate([0, flange_d / 2, 0])
+        label_tab(txt, label_h, flange_t, size = 4);
 }
 
-for (i = [0 : len(test_diameters) - 1])
+for (i = [0 : len(test_bosses) - 1])
     translate([i * gap, 0, 0])
-        m12_boss(test_diameters[i]);
+        m12_boss(test_bosses[i][0], test_bosses[i][1]);
 
 echo(str("M12 coupon: nominal ", lens_thread_d, " and ",
          lens_thread_d - 0.2, " mm, pitch ", lens_thread_pitch));
-echo("the one WITH the flat tab on its flange is the undersized one");
+echo("each boss carries its own diameter on a tab; no recall required");

@@ -145,7 +145,18 @@
           # print orientation so the slicer needs no manual fiddling.
           #   nix build .#optics-stl && ls result/
           optics-stl = pkgs.runCommand "testbench-optics-stl"
-            { nativeBuildInputs = [ pkgs.openscad ]; }
+            {
+              nativeBuildInputs = [ pkgs.openscad ];
+              # The coupons label themselves with text(), and text() with
+              # no font available renders NOTHING — a warning on stderr,
+              # exit 0, and a watertight STL with no label on it. The
+              # sandbox has no system fontconfig, so the font has to be an
+              # explicit input or every label silently disappears in the
+              # one build that is supposed to be reproducible.
+              FONTCONFIG_FILE = pkgs.makeFontsConf {
+                fontDirectories = [ pkgs.dejavu_fonts ];
+              };
+            }
             ''
               mkdir -p build $out
               cp ${./optics}/*.scad build/

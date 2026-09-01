@@ -59,6 +59,31 @@ gear_mod = 0.75;
 gear_pressure_angle = 20;
 gear_thickness = 8;        // rack/pinion face width, mm
 pinion_teeth = 12;
+
+// --- pinion tooth taper ------------------------------------------------
+//
+// The gear used to be a square-edged extrusion sitting on a separate 45
+// deg cone. Printed knob-down that cone was the only thing holding up a
+// 2.5mm radial ledge, and it was a distinct feature bolted under the
+// teeth rather than part of them.
+//
+// Instead each tooth TIP now slopes down to meet the shaft, so the
+// support is the tooth. pinion_tip_slope is measured FROM THE BED: the
+// cone widens as it rises, so its underside is the overhang, and
+//
+//     taper height = (tip radius - shaft radius) * tan(slope)
+//
+// A LARGER angle is a taller, steeper-walled taper and an easier print;
+// 45 deg is the usual self-support limit and is the floor here, not the
+// target. Taller also costs axial room, which is the trade: the whole
+// gear station has to live between the yoke arms.
+//
+// pinion_full_w is the full-depth band that actually drives the rack. It
+// is deliberately NOT gear_thickness — that value sets the rack, the yoke
+// slot and the clip coupon, and shrinking it there would silently resize
+// three other parts. Trimmed to 7 so the taper fits with margin.
+pinion_full_w = 7.0;
+pinion_tip_slope = 50;
 guide_rod_d = 4;           // smooth guide rod diameter the PCB carrier rides on, mm
 // The pinion shaft is PRINTED as part of the pinion, not stock rod. It
 // was 4mm only because that is a stock size; nothing requires it now, so
