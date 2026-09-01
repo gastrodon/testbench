@@ -42,6 +42,7 @@ gear_pressure_angle = 20;
 gear_thickness = 8;        // rack/pinion face width, mm
 pinion_teeth = 12;
 guide_rod_d = 4;           // smooth guide rod diameter the PCB carrier rides on, mm
+shaft_d_frame = 4;         // pinion axle: stock 4mm rod, carried in double shear
 
 // Knob diameter multiplies tactile fineness for free: the same angular
 // resolution at your fingertip covers proportionally less rotation on a
@@ -58,6 +59,42 @@ obj_f = 9;                         // focal length, mm; plausible range 8-14
 // chosen
 tube_len_nominal = 80;             // mm, starting point pending empirical focus test
 focus_travel = 20;                 // mm of adjustment range to build in
+
+// --- shared interface dimensions --------------------------------------
+// The carrier owns the rack and the frame owns the pinion bearings, so
+// these live here rather than in either part. Duplicating them into both
+// files is exactly how the checker drifted out of sync with the CAD once
+// already. Anything both a moving part and its frame must agree on
+// belongs in this block.
+// ARCHITECTURE: two bodies.
+//   BASE   fixed. sleeve + 150x objective cell in its floor + pinion yoke.
+//   MOVING PCB face + the tube that slides in the sleeve bore + the rack.
+// The tube-in-sleeve fit IS the linear bearing — an 18mm tube in an
+// 18.6mm bore over 56mm of engagement constrains far more than two 4mm
+// rods did, so there are no guide rods and no bushings. Focus changes the
+// sensor-to-objective distance because the sensor end moves and the
+// objective does not.
+carrier_tube_od = 18;              // = base sleeve bore mate
+carrier_tube_len = 80;
+carrier_face_w = 34;               // PCB mounting bar, X (spans the screws)
+carrier_face_d = 21;               // Y — wide enough to carry the tube
+carrier_face_t = 2.6;
+
+// Rack must clear the BASE SLEEVE's outside, since it rides alongside it.
+// Sleeve OD is 23.4 (r=11.7) and BOSL2's rack backing sits
+// 2*dedendum+addendum behind the pitch line, so the pitch line has to be
+// pushed out past -(11.7 + backing + clearance).
+rack_backing = 2 * 1.25 * gear_mod + gear_mod;
+rack_y = -(carrier_tube_od / 2 + 2.4 + rack_backing + 1.6);
+rack_engage_margin = 5;            // rack beyond each end of travel, mm
+carrier_z_home = tube_len_nominal + holder_h;
+pinion_z = carrier_z_home - rack_engage_margin;  // grounded; never travels
+// pinion_y = rack_y - gear_dist(...) — computed where BOSL2 is available,
+// since params.scad is included before the library.
+
+// The pinion axle is stock 4mm rod, not a printed part. It must reach
+// through both yoke bearings and out to the knob.
+axle_len = 62;
 
 // print fit
 wall = 2.4;                        // generic wall thickness, mm

@@ -329,9 +329,8 @@ def check_assembly(workdir: Path) -> bool:
           f"pinion_y={rack_y - pinion_dist:.3f}  pinion_z={pinion_z:.1f}")
 
     parts = {
-        "inner_tube": "inner_tube();",
-        "outer_sleeve": "outer_sleeve();",
-        "pcb_carrier": f"translate([0,0,{carrier_z}]) pcb_carrier();",
+        "base_mount": "base_mount();",
+        "carrier": f"translate([0,0,{carrier_z}]) pcb_carrier();",
         # The whole pinion INCLUDING the knob. Leaving the knob out of
         # the assembly check is what let a 392 mm^3 knob-through-plate
         # collision ship: the pinion pair was excluded wholesale on the
@@ -357,17 +356,23 @@ def check_assembly(workdir: Path) -> bool:
     # inner/outer tube are a deliberate slip fit: they must NOT interfere
     # but SHOULD sit within a couple of clearances of each other.
     pairs = [
-        ("inner_tube", "outer_sleeve", False,
-         f"telescoping slip fit (design clearance {clearance} mm/side)"),
-        ("pcb_carrier", "outer_sleeve", True, "must stay clear"),
-        ("pcb_carrier", "inner_tube", True, "must stay clear"),
+        # The carrier's tube slides in the base's bore — that IS the
+        # linear bearing, so they must stay close but never interfere.
+        ("carrier", "base_mount", False,
+         f"tube-in-sleeve bearing (design clearance {clearance} mm/side)"),
         # Gear and rack SHOULD touch, so this pair is allowed contact —
         # but only tooth-flank contact. Anything past a few mm^3 means
         # some other part of the pinion assembly (in practice the knob)
-        # is buried in the plate.
-        ("pinion", "pcb_carrier", "mesh",
-         "gear meshes with rack; knob must clear the plate entirely"),
-        ("pinion", "inner_tube", True, "must stay clear"),
+        # is buried in the carrier.
+        ("pinion", "carrier", "mesh",
+         "gear meshes with rack; knob and axle must clear the carrier"),
+        # The axle runs THROUGH the yoke bearings on a running fit: it
+        # must be closely surrounded but never actually touch. That is a
+        # fit, not a mesh — calling it "mesh" demands contact the design
+        # deliberately avoids, and reports a bearing working correctly as
+        # a failure.
+        ("pinion", "base_mount", False,
+         "axle running fit in the yoke bearings"),
     ]
 
     ok_all = True
@@ -381,13 +386,16 @@ def check_assembly(workdir: Path) -> bool:
             # Contact is expected. Allow it only as a thin sliver — a
             # buried part is chunky in every direction.
             ok = vol <= MESH_CONTACT_TOL_MM3 and sliver <= MESH_SLIVER_MAX_MM
-            if vol > MESH_CONTACT_TOL_MM3:
+            # Order matters: with no overlap at all, sliver is +inf, so
+            # testing thickness first reports "inf mm thick" — technically
+            # true, completely misleading. Check for no-contact first.
+            if vol == 0.0:
+                ok = False
+                note = "  <- no contact at all; the pair is not engaged"
+            elif vol > MESH_CONTACT_TOL_MM3:
                 note = "  <- overlap too large for tooth contact"
             elif sliver > MESH_SLIVER_MAX_MM:
                 note = f"  <- overlap is {sliver:.2f}mm thick, not a contact sliver"
-            elif vol == 0.0:
-                ok = False
-                note = "  <- no contact at all; the pair is not engaged"
         else:
             ok = vol <= INTERFERE_TOL_MM3
             if not ok:

@@ -79,14 +79,26 @@ module focus_knob() {
     }
 }
 
-// Both parts on their common shaft, for assembly views. The shaft is
-// stock 4mm rod, not printed, so it is ghosted with %.
+// The axle: stock 4mm rod, NOT printed. Modelled as real geometry (not a
+// % ghost) so interference checks actually see it — a ghost is excluded
+// from geometry, so nothing would have caught the axle fouling something.
+// It must span both yoke bearings and reach the knob:
+//   -9  through the -X bearing
+//    0  the gear
+//  +8.5 through the +X bearing
+// +47.5 the far face of the knob
+// axle_len in params.scad is cut from stock to suit.
+module focus_axle() {
+    translate([0, 0, -(axle_len - (knob_standoff + knob_h))])
+        cylinder(d = shaft_d_frame, h = axle_len);
+}
+
+// Both printed parts on their common axle, for assembly views.
 module focus_pinion() {
     focus_gear();
     translate([0, 0, knob_standoff])
         focus_knob();
-    %translate([0, 0, -gear_thickness])
-        cylinder(d = shaft_d, h = knob_standoff + knob_h + gear_thickness);
+    focus_axle();
 }
 
 // Print layout: the two parts side by side, both flat on the bed.

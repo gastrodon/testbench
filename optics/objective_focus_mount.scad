@@ -1,39 +1,65 @@
-// Objective focus mount — part 2 of the prime-focus microscope camera build.
+// Base mount — the FIXED half of the prime-focus microscope.
 // https://linear.app/gastrodon/document/microscope-camera-design-doc-15a95f836b98
 //
-// Holds the 150x objective cell (real 9mm printed thread, via BOSL2) at the
-// specimen end of a telescoping tube: an inner tube slides inside a fixed
-// outer sleeve and locks with a clamp screw. This stands in for the real
-// rack-and-pinion focus mechanism (that lives on pcb_carrier.scad instead —
-// see the design doc: image-side focus is M^2 easier than moving this end)
-// — good enough for the empirical focus test and early bench use, since
-// tube_len is not yet known (obj_f is assumed, see params.scad).
+// One printed piece carrying everything that does not move:
+//   * the 150x objective cell, on a real 9mm printed thread in the floor
+//   * the sleeve bore the camera carrier's tube slides in (the bearing)
+//   * the pinion yoke, holding the axle in double shear
+//   * a LEGO Technic pin breakout for provisional structure
 //
-// The outer sleeve breaks out to 2 LEGO Technic pins so it can plug
-// straight into a Technic beam for a provisional frame, ahead of the real
-// frame part.
+// Focus works because THIS body stays put while pcb_carrier.scad travels,
+// changing the sensor-to-objective distance. The objective used to live on
+// the moving tube, where sliding it would have changed nothing.
+//
+// The telescoping inner tube that used to be here is gone: it became part
+// of the carrier, which is the moving body.
 
 include <params.scad>
 include <lib/BOSL2/std.scad>
 include <lib/BOSL2/threading.scad>
+// gears.scad is NOT part of std.scad. Without it gear_dist() is
+// undefined, silently yields undef, and the bearing boss gets built at a
+// garbage position — OpenSCAD only warns. The yoke still rendered, still
+// came out watertight, and still passed every interference check,
+// because malformed geometry that happens to miss everything looks
+// exactly like correct geometry to a clearance test.
+include <lib/BOSL2/gears.scad>
 include <lib/Technic.scad/Technic.scad>
 
 $slop = 0.1; // FDM print clearance for the internal thread mask, mm; tune per-printer
 
 obj_bore_depth = obj_thread_engage + 2; // + lead-in beyond the measured engagement
+floor_t = obj_bore_depth + 1.5;    // base floor carrying the objective thread
 
-inner_od = 18;                     // stays well under the r12 (24mm dia) ring-light cap
-inner_id = inner_od - 2 * wall;
-inner_len = tube_len_nominal;
-
-sleeve_len = 40;                   // fixed portion, mounts to frame (frame TBD)
-sleeve_id = inner_od + 2 * clearance;
+// Sleeve runs up to just below the rack's lowest position (z=59.4 at
+// focus home) — "extends up a little" without needing a slot through the
+// tube wall itself. The rack's backing sits at y=-10.875, inside the
+// sleeve's 11.7mm outer radius, so a taller tube WOULD have to be slit.
+sleeve_len = 56;
+sleeve_id = carrier_tube_od + 2 * clearance;   // the moving tube's bearing
 sleeve_od = sleeve_id + 2 * wall;
 
-slot_w = 2;
-clamp_screw_d = 3.2;               // M3 clearance
-clamp_nut_flat = 5.6;              // M3 hex nut across-flats + slop
-clamp_nut_h = 3;
+breakout_z = 20;   // explicit, not sleeve_len/2 — the sleeve length changed once
+
+// --- pinion yoke ------------------------------------------------------
+// The frame. Two arms rise from the sleeve and straddle the rack, so the
+// pinion axle is carried in DOUBLE SHEAR — a bearing either side of the
+// gear rather than a cantilever. The gap between the arms is the slit the
+// rack travels in; a back web closes them into a U-channel for rigidity.
+//
+// Every dimension here is a clearance against something that moves:
+//   rack sweeps  x -4..4,  y -14.25..-10.875,  z 59.4..110
+//   gear reaches y -23.47 at its OD
+// so the arms sit outside |x|=4 and the web sits beyond y=-23.47.
+pinion_y = rack_y - gear_dist(mod = gear_mod, teeth1 = pinion_teeth,
+                              teeth2 = 0, pressure_angle = gear_pressure_angle);
+rack_slot_half = gear_thickness / 2 + 1.5;   // 1.5mm clearance per side
+arm_t = 3;
+arm_x = rack_slot_half + arm_t / 2;          // arm centreline
+bearing_d = shaft_d_frame + 0.35;            // running clearance on the shaft
+bearing_boss_d = 11;
+web_y = -32;   // must clear the gear OD; derived below, not guessed
+web_t = 3;
 
 module objective_thread_bore() {
     // Real printed 9mm thread, not a self-tapping guess. Pitch is
@@ -46,11 +72,13 @@ module objective_thread_bore() {
         );
 }
 
-module inner_tube() {
+module base_floor() {
+    // Closed floor at the specimen end, carrying the 150x cell. The cell
+    // threads in from below; light passes up the bore into the carrier's
+    // tube. Because the floor is part of the FIXED body, the objective
+    // stays put and focus is purely the carrier's travel.
     difference() {
-        cylinder(d = inner_od, h = inner_len);
-        translate([0, 0, -1])
-            cylinder(d = inner_id, h = inner_len + 2);
+        cylinder(d = sleeve_od, h = floor_t);
         objective_thread_bore();
     }
 }
@@ -103,39 +131,87 @@ module technic_breakout_solid() {
                     technic_pin_half(length = 1, friction = true);
 }
 
-module outer_sleeve() {
+module pinion_yoke_solid() {
+    // Each arm: hulled from a pad on the sleeve up to the bearing boss,
+    // giving a tapered strut with no abrupt section change. The pad
+    // starts at y=-9 so it overlaps the sleeve wall (surface at y=-9.7 at
+    // this x) while staying clear of the sliding inner tube, whose
+    // surface at x=+/-6.5 is only y=-6.2.
+    for (s = [-1, 1]) {
+        translate([s * arm_x, 0, 0]) {
+            hull() {
+                // pad, straddling the sleeve wall: reaches in to y=-8 for
+                // real overlap (wall surface is y=-9.7 at this x) while
+                // staying clear of the sliding inner tube at y=-6.2
+                translate([-arm_t / 2, rack_y - 2, sleeve_len - 30])
+                    cube([arm_t, abs(rack_y) - 6, 24]);
+                // bearing boss
+                translate([-arm_t / 2, pinion_y, pinion_z])
+                    rotate([0, 90, 0])
+                        cylinder(d = bearing_boss_d, h = arm_t);
+            }
+        }
+    }
+    // Back web ties the arms together. Without it the two arms are
+    // independent cantilevers and the axle can still splay.
+    hull() {
+        translate([-(arm_x + arm_t / 2), web_y, pinion_z - 14])
+            cube([2 * (arm_x + arm_t / 2), web_t, 21]);
+        translate([-(arm_x + arm_t / 2), web_y + 6, sleeve_len - 14])
+            cube([2 * (arm_x + arm_t / 2), web_t, 8]);
+    }
+}
+
+// Nothing in the frame may reach the carrier plate's underside, which
+// sits at carrier_z_home and travels UP from there — so the home
+// position is the worst case, not the extended one.
+yoke_ceiling = carrier_z_home - 1.5;
+
+module pinion_yoke_cuts() {
+    // Rack travel slot: the swept volume of the rack across the whole
+    // focus range, plus clearance. Cutting the SWEPT volume rather than
+    // the rack's home position is the point — the rack moves 20mm.
+    translate([-rack_slot_half, rack_y - 3, sleeve_len - 4])
+        cube([2 * rack_slot_half, rack_backing + 5, 70]);
+
+    // Gear pocket, so the pinion can spin without touching the web
+    translate([-rack_slot_half, pinion_y, pinion_z])
+        rotate([0, 90, 0])
+            cylinder(d = 14, h = 2 * rack_slot_half);
+
+    // Bearing bores, both arms, one continuous axis
+    translate([-(arm_x + arm_t), pinion_y, pinion_z])
+        rotate([0, 90, 0])
+            cylinder(d = bearing_d, h = 2 * (arm_x + arm_t));
+
+    // Trim everything above the carrier plate's underside. Cheaper and
+    // more robust than sizing each feature to clear it individually.
+    translate([-60, -60, yoke_ceiling])
+        cube([120, 120, 60]);
+}
+
+module base_mount() {
     // Bore and cutouts are subtracted LAST, after the breakout is
     // unioned on — hull() fills its own concavity, so subtracting the
     // bore first would let the flare bridge across the light path.
     difference() {
         union() {
             cylinder(d = sleeve_od, h = sleeve_len);
-            translate([0, 0, sleeve_len / 2])
+            base_floor();
+            translate([0, 0, breakout_z])
                 technic_breakout_solid();
+            pinion_yoke_solid();
         }
 
-        translate([0, 0, -1])
-            cylinder(d = sleeve_id, h = sleeve_len + 2);
+        // Bore starts above the floor, so the floor stays solid for the
+        // objective thread. No clamp slot or clamp screw any more: the
+        // carrier is positioned by the rack and pinion, not pinched.
+        translate([0, 0, floor_t])
+            cylinder(d = sleeve_id, h = sleeve_len);
 
-        // slot the full length so the sleeve can clamp down on the inner tube
-        translate([-slot_w / 2, 0, -1])
-            cube([slot_w, sleeve_od / 2 + 1, sleeve_len + 2]);
-
-        // clamp screw, radial, near the open (specimen) end
-        translate([0, -sleeve_od / 2 - 1, sleeve_len - 8])
-            rotate([-90, 0, 0])
-                cylinder(d = clamp_screw_d, h = sleeve_od + 2);
-
-        // captured nut trap on the far side
-        translate([0, sleeve_od / 2 - clamp_nut_h + 0.4, sleeve_len - 8])
-            rotate([90, 0, 90])
-                cylinder(d = clamp_nut_flat, h = clamp_nut_h + 0.2, $fn = 6);
+        pinion_yoke_cuts();
     }
 }
 
-// Lay out separately so both print without support: inner tube upright
-// (bore opening down), sleeve beside it.
-translate([-sleeve_od - technic_pin_spacing - 20, 0, 0])
-    inner_tube();
-
-outer_sleeve();
+// One printed part, upright: floor on the bed, bore opening up.
+base_mount();

@@ -39,24 +39,21 @@ explode = 0;      // [0:0.01:1]
 /* [Hidden] */
 ft = animate_focus ? $t : focus_t;
 
-// --- geometry duplicated from each part file, for positioning only ---
-inner_len = tube_len_nominal;          // objective_focus_mount.scad
-sleeve_len = 40;
-margin = 4;                            // pcb_carrier.scad
-plate_w = pcb[1] + 2 * margin;
-plate_d = pcb[0] + 2 * margin;
-rack_y = -(plate_d / 2 - margin / 2);   // rack on the SHORT edge
-rod_x = plate_w / 2 - margin / 2;
-rod_bushing_len = 14;
-rack_engage_margin = 5;                 // matches pcb_carrier.scad
+// --- positions --------------------------------------------------------
+// carrier_z_home, pinion_z, rack_y and rack_engage_margin all come from
+// params.scad. This file MUST NOT redefine them.
+//
+// It did, once, and the consequence was not a warning but silence:
+// a duplicate top-level assignment across an include resolved to undef,
+// translate([0,0,undef]) did nothing, and the carrier rendered at z=0
+// buried inside the tube. Worse, check.py derives its own positions, so
+// the verification kept passing on a correct assembly while this file
+// drew a broken one — the picture and the proof had come apart.
+inner_len = tube_len_nominal;
 
 // gear_dist(), not pitch_radius() — see focus_pinion.scad
 pinion_dist = gear_dist(mod = gear_mod, teeth1 = pinion_teeth, teeth2 = 0,
                         pressure_angle = gear_pressure_angle);
-
-// Stack along Z, specimen end (objective) at the bottom, camera end
-// (PCB) at the top — matches the design doc's ASCII diagram.
-carrier_z_home = inner_len + holder_h;
 
 // --- focus kinematics -------------------------------------------------
 // Rolling without slipping. The contact point sits at +Y from the pinion
@@ -73,10 +70,8 @@ travel_per_rev = PI * gear_mod * pinion_teeth;
 travel = focus_travel * ft;                       // mm
 pinion_phi = 360 * travel / travel_per_rev;       // deg
 carrier_z = carrier_z_home + travel;
-
-// Fixed in world Z, engaging the rack near its top when focus is at
-// home. As the carrier climbs, the engagement point walks down the rack.
-pinion_z = carrier_z_home - rack_engage_margin;
+// pinion_z is fixed in world Z and owned by params.scad — the pinion is
+// grounded, so its height must not depend on carrier travel.
 
 // $slop is dynamically scoped: objective_focus_mount.scad's own
 // $slop=0.1 applies only when IT is the running file, not when its
@@ -86,16 +81,12 @@ $slop = 0.1;
 // --- explode offsets --------------------------------------------------
 // Each part moves along the axis it is actually assembled along, so the
 // exploded view reads as an assembly instruction rather than a scatter.
-ex_inner   = explode * 55;    // inner tube lifts out of the sleeve, +Z
-ex_carrier = explode * 55;    // carrier lifts off the tube, +Z
+ex_carrier = explode * 60;    // carrier (face + tube) lifts out, +Z
 ex_pinion  = explode * 38;    // pinion withdraws along its own axis, -X
 
 color("SteelBlue")
-    outer_sleeve();
+    base_mount();
 
-color("SkyBlue")
-    translate([0, 0, ex_inner])
-        inner_tube();
 
 color("Goldenrod")
     translate([0, 0, carrier_z + ex_carrier])
@@ -109,9 +100,3 @@ color("FireBrick")
             rotate([0, 0, pinion_phi])   // about the pinion's own axis
                 focus_pinion();
 
-// Ghost the guide rods so the carrier's travel axis is visible. They are
-// stock 4mm rod, not a printed part, hence the % (transparent, excluded
-// from geometry).
-%for (x = [-rod_x, rod_x])
-    translate([x, 0, carrier_z_home - rod_bushing_len - 4])
-        cylinder(d = guide_rod_d, h = focus_travel + rod_bushing_len + 14);

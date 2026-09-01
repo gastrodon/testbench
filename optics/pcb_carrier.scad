@@ -1,152 +1,119 @@
-// PCB carrier plate — part 1 of the prime-focus microscope camera build.
+// Camera carrier — the MOVING half of the prime-focus microscope.
 // https://linear.app/gastrodon/document/microscope-camera-design-doc-15a95f836b98
 //
-// The N60's PCB seats on this plate, self-tapping screws through the same
-// 2 holes the M12 holder already uses, so holder + PCB + carrier all pin to
-// one axis. Those 2 screws are the only feature on the whole build
-// referenced to the optical axis, so this plate's screw-hole positions ARE
-// the axis for everything downstream.
+// One printed piece combining what used to be two: the PCB mounting face
+// and the optical tube. The tube slides in the base's sleeve bore, so the
+// tube-in-sleeve fit IS the linear bearing — there are no guide rods and
+// no bushings (an 18mm tube in an 18.6mm bore over 56mm of engagement
+// constrains far more than two 4mm rods, and the earlier bushings drove
+// straight through the tube anyway).
 //
-// The board is USB-fed at one end (55mm long, screws only 20mm apart, so
-// ~17.5mm of unsupported overhang past the screws either way) — a tugged
-// cable would otherwise torque the mount straight through the PCB. The
-// strain-relief post anchors the cable to the plate instead.
+// This whole body travels relative to the base. Since the base holds the
+// 150x objective, moving it changes the sensor-to-objective distance —
+// which is the focus.
 //
-// This is the moving half of the focus mechanism (image-side focus, per
-// the design doc — M^2 easier than moving the objective end): the plate
-// rides 2 fixed guide rods along Z (the optical axis) and carries an
-// integrated rack that a frame-mounted pinion (focus_pinion.scad) drives.
-// The frame itself — which holds the rods and the pinion shaft — isn't
-// designed yet; this part only needs to be internally consistent with it.
+// The face is deliberately NOT a full rectangle. It only has to reach the
+// two M12-holder screws (the only features referenced to the optical
+// axis) and carry the tube; the 19x55 board itself is cantilevered off
+// those two screws exactly as it is in the webcam.
 
 include <params.scad>
 include <lib/BOSL2/std.scad>
 include <lib/BOSL2/gears.scad>
 
-margin = 4;               // plate overhang past the board footprint, mm
-boss_d = holder_screw_d + 3;  // printed boss OD around each screw hole, mm
-screw_hole_d = holder_screw_d - 0.3; // slightly undersized so a self-tapping screw bites
-plate_t = wall;
+face_t = carrier_face_t;
+boss_d = holder_screw_d + 3.4;
+screw_hole_d = holder_screw_d - 0.3;   // undersized: self-tapping screw bites
+boss_h = 2.2;
 
-cable_end = 1;            // +1 or -1: which end of the board the USB cable exits.
-                           // Confirm against the physical board before printing.
+tube_od = carrier_tube_od;
+tube_id = tube_od - 2 * wall;
+tube_len = carrier_tube_len;
 
-plate_w = pcb[1] + 2 * margin; // long axis (board length), X
-plate_d = pcb[0] + 2 * margin; // short axis (board width), Y
+aperture_d = tube_id;                  // clear path from sensor into the tube
 
-// Guide rods flank the board along X (the long axis), symmetric about
-// the optical axis so the carriage cannot rotate as it travels.
-//
-// They were on the Y axis at +/-11.5mm, where the bushings (4.4mm boss
-// radius, hanging 14mm below the plate) reached to 7.1mm from the axis
-// and drove straight through the 9mm-radius optical tube — a 65mm^3
-// collision that no render showed, because the tube hides behind the
-// plate from every viewing angle. Found by check.py, not by looking.
-// On the X axis at +/-29.5mm the bushings clear the tube by a wide
-// margin, and the wider span resists carriage twist better besides.
-rod_boss_od = guide_rod_d + 2 * wall;
-rod_bushing_len = 14;      // below the plate, mm — plate itself is too thin (wall) to bear alone
-rod_x = plate_w / 2 - margin / 2;
-
-// Rack sits on the SHORT (Y) edge: that puts the pinion 17.8mm off the
-// optical axis instead of 35.8mm on the long edge, halving the frame's
-// reach and the cantilever it has to hold rigid.
-//
-// It hangs DOWNWARD from the plate, along the travel axis. The pinion is
-// fixed to the frame and the carrier climbs past it, so relative to the
-// carrier the engagement point travels from the rack's top (focus at
-// home) to its bottom (focus at full travel) — the rack therefore has to
-// be at least focus_travel long, plus engagement margin at both ends.
+// Rack runs the travel axis on the -Y side, standing off the tube on a
+// fin. rack_y comes from params.scad — the base's pinion bearings must
+// agree with it.
 rack_circ_pitch = PI * gear_mod;
-rack_engage_margin = 5;                 // mm of rack beyond each travel end
 rack_len_min = focus_travel + 2 * rack_engage_margin;
 rack_teeth = ceil(rack_len_min / rack_circ_pitch);
 rack_len = rack_teeth * rack_circ_pitch;
-rack_z_center = -rack_len / 2;          // top of rack flush with plate underside
+rack_z_center = -rack_len / 2;         // hangs down from the face
+fin_t = gear_thickness;                // fin is as wide as the rack
 
-// Rack pitch line sits FLUSH with the plate edge, not inset. BOSL2's
-// rack backing extends 2*dedendum+addendum behind the pitch line, and
-// since the rack hangs down alongside the optical tube, that backing is
-// what has to clear the tube's 9mm outer radius. Inset by margin/2 the
-// backing reached y=-8.875 and fouled the tube by 0.125mm — a real
-// collision, small enough to look like rounding error but not.
-// Flush with the edge it reaches -10.875, clearing by 1.875mm.
-rack_y = -plate_d / 2;
-
-module screw_bosses() {
-    for (x = [-holder_screw_span / 2, holder_screw_span / 2])
-        translate([x, 0, 0])
-            cylinder(d = boss_d, h = plate_t + 1.5, center = false);
-}
-
-module screw_holes() {
-    for (x = [-holder_screw_span / 2, holder_screw_span / 2])
-        translate([x, 0, -0.5])
-            cylinder(d = screw_hole_d, h = plate_t + 3, center = false);
-}
-
-module guide_rod_bosses() {
-    for (x = [-rod_x, rod_x])
-        translate([x, 0, -rod_bushing_len])
-            cylinder(d = rod_boss_od, h = rod_bushing_len + plate_t, center = false);
-}
-
-module guide_rod_holes() {
-    for (x = [-rod_x, rod_x])
-        translate([x, 0, -rod_bushing_len - 1])
-            cylinder(d = guide_rod_d, h = rod_bushing_len + plate_t + 2, center = false);
-}
-
-module strain_relief() {
-    // A post + crossbar past the board's overhanging end, with a gap
-    // underneath to loop a zip-tie around the cable and cinch it to the
-    // plate instead of the PCB.
-    post_x = cable_end * (plate_w / 2 - margin / 2);
-    post_h = 9;
-    post_w = 6;
-    bar_t = 2.4;
-
-    translate([post_x, 0, 0]) {
-        cube([post_w, pcb[0] * 0.6, post_h], center = true);
-        translate([0, 0, post_h / 2 - bar_t / 2])
-            cube([post_w + 6, pcb[0] * 0.6, bar_t], center = true);
+module mounting_face() {
+    // A bar spanning the two holder screws, with a central aperture the
+    // sensor looks through. Rounded so there is no corner to catch.
+    difference() {
+        union() {
+            translate([0, 0, face_t / 2])
+                cuboid([carrier_face_w, carrier_face_d, face_t],
+                       rounding = 4, edges = "Z");
+            for (x = [-holder_screw_span / 2, holder_screw_span / 2])
+                translate([x, 0, 0])
+                    cylinder(d = boss_d, h = face_t + boss_h);
+        }
+        translate([0, 0, -1])
+            cylinder(d = aperture_d, h = face_t + boss_h + 2);
+        for (x = [-holder_screw_span / 2, holder_screw_span / 2])
+            translate([x, 0, -1])
+                cylinder(d = screw_hole_d, h = face_t + boss_h + 2);
     }
 }
 
+module carrier_tube() {
+    // Hangs down from the face into the base sleeve.
+    difference() {
+        translate([0, 0, -tube_len])
+            cylinder(d = tube_od, h = tube_len + 0.01);
+        translate([0, 0, -tube_len - 1])
+            cylinder(d = tube_id, h = tube_len + 2);
+    }
+}
+
+module rack_fin() {
+    // Ties the rack to the tube. Spans from inside the tube wall out to
+    // the rack's backing so there is real volumetric overlap at both
+    // ends rather than tangent contact.
+    // Both ends run in -Y, so the outer edge is the LOWER y. Ordering
+    // these the other way round yields a negative cube extent, which
+    // OpenSCAD rejects outright rather than silently mis-drawing.
+    fin_inner = -(tube_od / 2 - 1);          // inside the tube wall
+    fin_outer = rack_y + rack_backing;       // into the rack's backing
+    translate([-fin_t / 2, fin_outer, rack_z_center - rack_len / 2])
+        cube([fin_t, fin_inner - fin_outer, rack_len]);
+}
+
 module focus_rack() {
-    // BOSL2's rack() lies length-along-X, teeth-pointing-+Z, thickness
-    // along Y. Three axes have to land correctly, and getting any one
-    // wrong still renders as a plausible-looking toothed strip:
-    //
-    //   length +X -> +Z   the travel axis
-    //   teeth  +Z -> -Y   outward from the -Y edge, toward the pinion
-    //   thick  +Y -> -X   across the plate edge
-    //
-    // rotate([0,-90,90]) is the composition that does this. An earlier
-    // rotate([90,0,90]) put the LENGTH along Y — the rack lay across the
-    // plate instead of along the travel, and overhung both edges (it
-    // showed up as a 39mm Y bounding box on a 27mm plate).
+    // length +X -> +Z (travel), teeth +Z -> -Y (outward, toward the
+    // pinion), thickness +Y -> -X. See the note in git history: an
+    // earlier rotate([90,0,90]) put the LENGTH along Y instead.
     translate([0, rack_y, rack_z_center])
         rotate([0, -90, 90])
-            rack(
-                mod = gear_mod, teeth = rack_teeth, thickness = gear_thickness,
-                pressure_angle = gear_pressure_angle,
-                anchor = CENTER
-            );
+            rack(mod = gear_mod, teeth = rack_teeth,
+                 thickness = gear_thickness,
+                 pressure_angle = gear_pressure_angle, anchor = CENTER);
+}
+
+module cable_relief() {
+    // The board is 55mm long on 20mm screw centres, so a tugged USB
+    // cable torques the mount through the PCB. A zip-tie slot in the
+    // face takes that load instead — compact, unlike the old post.
+    for (s = [-1, 1])
+        translate([s * (carrier_face_w / 2 - 4), 0, -1])
+            cube([2.6, 9, face_t + 2], center = false);
 }
 
 module pcb_carrier() {
     difference() {
         union() {
-            linear_extrude(height = plate_t)
-                square([plate_w, plate_d], center = true);
-            screw_bosses();
-            guide_rod_bosses();
+            mounting_face();
+            carrier_tube();
+            rack_fin();
         }
-        screw_holes();
-        guide_rod_holes();
+        cable_relief();
     }
-    strain_relief();
     focus_rack();
 }
 

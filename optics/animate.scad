@@ -58,28 +58,21 @@ explode =
 turntable = 360 * $t;
 
 // --- geometry (mirrors assembly.scad) ---------------------------------
+// carrier_z_home, pinion_z, rack_y, rack_engage_margin: params.scad owns
+// these. Redefining them here resolves to undef and silently breaks the
+// positioning — see the note in assembly.scad.
 inner_len = tube_len_nominal;
-sleeve_len = 40;
-margin = 4;
-plate_w = pcb[1] + 2 * margin;
-plate_d = pcb[0] + 2 * margin;
-rack_y = -plate_d / 2;
-rod_x = plate_w / 2 - margin / 2;
-rod_bushing_len = 14;
-rack_engage_margin = 5;
 
 pinion_dist = gear_dist(mod = gear_mod, teeth1 = pinion_teeth, teeth2 = 0,
                         pressure_angle = gear_pressure_angle);
 
-carrier_z_home = inner_len + holder_h;
 travel_per_rev = PI * gear_mod * pinion_teeth;
 travel = focus_travel * focus_t;
 pinion_phi = 360 * travel / travel_per_rev;
 carrier_z = carrier_z_home + travel;
-pinion_z = carrier_z_home - rack_engage_margin;   // GROUNDED, never travels
+// pinion_z: params.scad. GROUNDED — must not depend on travel.
 
-ex_inner   = explode * 55;
-ex_carrier = explode * 55;
+ex_carrier = explode * 60;
 ex_pinion  = explode * 38;
 
 // Spin about the optical axis, centred on the assembly's mid-height so
@@ -87,10 +80,7 @@ ex_pinion  = explode * 38;
 rotate([0, 0, turntable])
 translate([0, 0, -carrier_z_home / 2])
 {
-    color("SteelBlue")  outer_sleeve();
-
-    color("SkyBlue")
-        translate([0, 0, ex_inner]) inner_tube();
+    color("SteelBlue")  base_mount();
 
     color("Goldenrod")
         translate([0, 0, carrier_z + ex_carrier]) pcb_carrier();
@@ -101,7 +91,4 @@ translate([0, 0, -carrier_z_home / 2])
                 rotate([0, 0, pinion_phi])
                     focus_pinion();
 
-    %for (x = [-rod_x, rod_x])
-        translate([x, 0, carrier_z_home - rod_bushing_len - 4])
-            cylinder(d = guide_rod_d, h = focus_travel + rod_bushing_len + 14);
-}
+    }
