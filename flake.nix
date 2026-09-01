@@ -198,6 +198,12 @@
               # directly instead of only proving the coupon fits.
               openscad -o $out/m12_coupon.stl build/m12_coupon.scad
               openscad -o $out/clip_coupon.stl build/clip_coupon.scad
+
+              # The whole coupon build plate, parts and their on-sheet
+              # labels arranged together. Slicing this rather than
+              # concatenating STLs keeps the layout reviewable and means
+              # a label can never drift away from the part it names.
+              openscad -o $out/coupon_plate.stl build/coupon_plate.scad
             '';
 
           optics-calibration = pkgs.runCommand "testbench-optics-calibration"

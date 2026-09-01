@@ -84,6 +84,26 @@ pinion_teeth = 12;
 // three other parts. Trimmed to 7 so the taper fits with margin.
 pinion_full_w = 7.0;
 pinion_tip_slope = 50;
+
+// --- knob blending -----------------------------------------------------
+//
+// Where the shaft meets the knob face, a cove rather than a square step.
+// The profile is a power curve, not a radius: height above the knob face
+// goes as ((knob_r - r)/(knob_r - shaft_r))^knob_cove_pow, so it hugs the
+// face across most of the knob and sweeps up only close to the axis —
+// the curvature is concentrated at the centre. Raise the power to pull it
+// tighter in, lower it toward 1 for a plain cone.
+//
+// Height is bounded by the carrier: the knob face already sits only 5mm
+// clear of the carrier's 34mm-wide bar, and the cove grows back toward it.
+// check.py's pinion-vs-carrier pair is what actually holds this honest.
+knob_cove_h = 4.0;
+knob_cove_pow = 2.2;
+
+// Break the knob's outer edges. Bottom chamfer also gives the first layer
+// a smaller footprint that grows, which is the usual dodge for elephant
+// foot on a wide disc.
+knob_chamfer = 1.0;
 guide_rod_d = 4;           // smooth guide rod diameter the PCB carrier rides on, mm
 // The pinion shaft is PRINTED as part of the pinion, not stock rod. It
 // was 4mm only because that is a stock size; nothing requires it now, so

@@ -21,12 +21,7 @@
 
 include <params.scad>
 include <lib/BOSL2/std.scad>
-use <label.scad>
-
 $slop = 0.1;
-
-// One layer at 0.2, and at least one at anything finer. See label.scad.
-label_h = 0.2;
 
 // Short sections of each, so you can feel the fit without printing 80mm
 // of tube.
@@ -47,15 +42,6 @@ module slide_coupon() {
                 cylinder(d = carrier_tube_od - 2 * wall, h = hh + 2);
         }
 }
-
-// Which half is which, and at what clearance. The sleeve and the tube
-// stub are both plain rings and are genuinely hard to tell apart by eye
-// once the pair is off the bed.
-label_plate_t = 1.2;
-translate([0, -(carrier_tube_od / 2 + clearance + wall), 0])
-    label_tab("SLEEVE", label_h, label_plate_t, size = 3.5, dir = -1);
-translate([carrier_tube_od + 12, -carrier_tube_od / 2, 0])
-    label_tab(str("TUBE ", clearance), label_h, label_plate_t, size = 3.5, dir = -1);
 
 slide_coupon();
 

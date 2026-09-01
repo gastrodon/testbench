@@ -21,12 +21,7 @@ include <lib/BOSL2/std.scad>
 include <lib/BOSL2/gears.scad>
 include <lib/BOSL2/threading.scad>
 use <objective_focus_mount.scad>
-use <label.scad>
-
 $slop = 0.1;
-
-// One layer at 0.2, and at least one at anything finer. See label.scad.
-label_h = 0.2;
 
 // Keep everything from just below the tie bridge up to the ceiling.
 slice_bottom = 68;
@@ -59,11 +54,6 @@ module clip_coupon() {
         translate([-rack_slot_half_pub, rack_y - 4, slice_bottom - 1])
             cube([2 * rack_slot_half_pub, 8, foot_t + 2]);
     }
-    // What this coupon is and what throat it carries, on the far edge of
-    // the foot where the arms cannot reach it.
-    translate([0, rack_y - 12 - foot_pad, slice_bottom])
-        label_tab(str("CLIP ", snap_throat_pub), label_h, foot_t,
-                  size = 3.5, dir = -1);
 }
 
 // objective_focus_mount.scad's internals are not exported by use<>, so
@@ -74,8 +64,20 @@ rack_slot_half_pub = gear_thickness / 2 + 3;
 arm_x_pub = rack_slot_half_pub + arm_t_pub / 2;
 snap_throat_pub = shaft_d_frame - 0.3;
 
-translate([0, 0, -slice_bottom])
-    clip_coupon();
+// Where this part's footprint actually sits in Y. The foot reaches a long
+// way back toward the rack, so the geometry is NOT centred on the origin —
+// a plate that assumes it is will place a neighbouring label inside the
+// foot, where it merges into the union and disappears without a trace.
+// Exported so the plate can offset by the same number this file uses.
+function clip_y_centre() = (rack_y - 12) / 2;
+
+// Print orientation: the sliced-off bottom of the region sits on the bed.
+module clip_coupon_printable() {
+    translate([0, 0, -slice_bottom])
+        clip_coupon();
+}
+
+clip_coupon_printable();
 
 echo(str("clip coupon: slice z ", slice_bottom, "..", slice_top,
          "  throat ", shaft_d_frame - 0.3, " on a ", shaft_d_frame, "mm shaft"));

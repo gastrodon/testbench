@@ -65,11 +65,10 @@ taper_h = taper_rise * tan(pinion_tip_slope);
 shaft_to_knob = knob_standoff - pinion_full_w / 2;
 
 // The gear station has to live between the yoke arms, whose inner faces
-// sit at +/-rack_slot_half. The full-depth band is centred on the rack's
-// midplane and the taper hangs below it, so the knob side is the tight
-// one — that lower face is what this checks.
+// sit at +/-rack_slot_half. With the taper mirrored the station is
+// symmetric about the rack midplane, so one check covers both ends.
 yoke_slot_half = gear_thickness / 2 + 3;
-gear_station_bottom = pinion_full_w / 2 + taper_h;
+gear_station_bottom = pinion_full_w / 2 + taper_h;   // same both ends now
 assert(gear_station_bottom <= yoke_slot_half - clearance,
        str("pinion taper fouls the yoke arm: needs ", gear_station_bottom,
            "mm below the rack midplane, only ", yoke_slot_half - clearance,
@@ -77,8 +76,8 @@ assert(gear_station_bottom <= yoke_slot_half - clearance,
 
 echo(str("pinion tip radius ", pinion_tip_r, " (profile shift ",
          pinion_profile_shift, ")"));
-echo(str("tooth taper: ", pinion_tip_slope, " deg from bed -> ", taper_h,
-         "mm tall; station ", pinion_full_w + taper_h,
+echo(str("tooth taper: ", pinion_tip_slope, " deg from bed, ", taper_h,
+         "mm tall at EACH end; station ", pinion_full_w + 2 * taper_h,
          "mm in a ", 2 * yoke_slot_half, "mm slot"));
 
 pinion_mesh_dist = gear_dist(mod = gear_mod, teeth1 = pinion_teeth, teeth2 = 0,
@@ -90,14 +89,22 @@ echo(str("carrier travel per pinion revolution: ",
     PI * gear_mod * pinion_teeth, " mm"));
 echo(str("knob standoff from gear midplane: ", knob_standoff, " mm"));
 
-// The solid the gear blank is cut back to: a cone rising from the shaft
-// to the tip circle, then a cylinder wide enough to leave the full-depth
-// band untouched.
+// SYMMETRIC: the teeth run out into the shaft at BOTH ends.
+//
+// The lower taper is the one that has to exist — printed knob-down it is
+// what holds the teeth up. The upper one is free: a cone that narrows as
+// it rises is self-supporting no matter how steep, so mirroring it costs
+// nothing in printability and only the axial room to put it in.
 module gear_taper_mask() {
+    // bottom: shaft opening out to the tip circle
     translate([0, 0, -pinion_full_w / 2 - taper_h])
         cylinder(d1 = shaft_d, d2 = 2 * pinion_tip_r, h = taper_h);
+    // middle: full-depth teeth, the band that drives the rack
     translate([0, 0, -pinion_full_w / 2])
-        cylinder(d = 2 * pinion_tip_r + 2, h = pinion_full_w + 1);
+        cylinder(d = 2 * pinion_tip_r + 2, h = pinion_full_w);
+    // top: closing back down to the shaft
+    translate([0, 0, pinion_full_w / 2])
+        cylinder(d1 = 2 * pinion_tip_r, d2 = shaft_d, h = taper_h);
 }
 
 module focus_gear() {
@@ -110,23 +117,49 @@ module focus_gear() {
     // so the cone leaves the shaft before any tooth material appears and
     // the two stay one continuous solid.
     intersection() {
-        translate([0, 0, -taper_h / 2])
-            spur_gear(mod = gear_mod, teeth = pinion_teeth,
-                      thickness = pinion_full_w + taper_h,
-                      pressure_angle = gear_pressure_angle, shaft_diam = 0,
-                      anchor = CENTER);
+        spur_gear(mod = gear_mod, teeth = pinion_teeth,
+                  thickness = pinion_full_w + 2 * taper_h,
+                  pressure_angle = gear_pressure_angle, shaft_diam = 0,
+                  anchor = CENTER);
         gear_taper_mask();
     }
 }
 
+// The flutes stand slightly proud of knob_d, so the chamfer mask is taken
+// at their outer diameter — cutting at knob_d would shave the grip ridges
+// off entirely instead of breaking their edges.
+knob_od = knob_d + 0.4;
+
 module focus_knob() {
-    union() {
-        cylinder(d = knob_d, h = knob_h);
-        for (a = [0 : 360 / flute_n : 359])
-            rotate([0, 0, a])
-                translate([knob_d / 2 - 0.6, 0, knob_h / 2])
-                    cube([1.6, 1.6, knob_h], center = true);
+    intersection() {
+        union() {
+            cylinder(d = knob_d, h = knob_h);
+            for (a = [0 : 360 / flute_n : 359])
+                rotate([0, 0, a])
+                    translate([knob_d / 2 - 0.6, 0, knob_h / 2])
+                        cube([1.6, 1.6, knob_h], center = true);
+        }
+        cyl(d = knob_od, h = knob_h, chamfer = knob_chamfer, anchor = BOTTOM);
     }
+}
+
+// Cove blending the shaft into the knob face.
+//
+// Sampled and revolved, because the profile is a power curve rather than
+// an arc and there is no primitive for that. Printed knob-down the surface
+// narrows as it rises, so it is self-supporting at any power.
+COVE_SEGS = 48;
+
+module knob_cove() {
+    kr = knob_d / 2;
+    sr = shaft_d / 2;
+    // w runs 0 at the knob rim to 1 at the shaft; z rises as w^pow, so the
+    // steep part of the sweep lands at the centre
+    pts = [ for (i = [0 : COVE_SEGS])
+              let (w = i / COVE_SEGS)
+              [kr - w * (kr - sr), knob_cove_h * pow(w, knob_cove_pow)] ];
+    rotate_extrude()
+        polygon(concat([[sr, 0]], pts));
 }
 
 // ONE PRINTED PART: knob, shaft, gear and the far stub, all rigid.
@@ -134,21 +167,26 @@ module focus_knob() {
 // gear ends up on top. There is no separate flare any more — the tapered
 // tooth tips carry that transition themselves.
 //
-// z=0 is the RACK MIDPLANE, and the full-depth band is centred on it, so
-// the taper's cost lands entirely on the knob side and the geometry the
-// assembly positions from is unchanged.
+// z=0 is the RACK MIDPLANE and the full-depth band is centred on it, with
+// an equal taper each side, so the geometry the assembly positions from is
+// unchanged.
 module focus_pinion() {
     stub_len = arm_reach + 2;
     translate([0, 0, -(knob_h + shaft_to_knob)]) {
         focus_knob();
+        // cove sitting on the knob face, blending into the shaft
+        translate([0, 0, knob_h - 0.01])
+            knob_cove();
         // shaft from the knob up through the gear; it runs inside the
         // tooth roots, so gear and shaft union without a seam
         translate([0, 0, knob_h])
-            cylinder(d = shaft_d, h = shaft_to_knob + pinion_full_w / 2);
+            cylinder(d = shaft_d, h = shaft_to_knob + pinion_full_w / 2 + taper_h);
     }
     focus_gear();
-    // far stub, through the opposite bearing
-    translate([0, 0, pinion_full_w / 2 - 0.01])
+    // far stub, through the opposite bearing. It starts above the upper
+    // taper now; the taper closes down to exactly shaft_d, so the two meet
+    // without a step.
+    translate([0, 0, pinion_full_w / 2 + taper_h - 0.01])
         cylinder(d = shaft_d, h = stub_len);
 }
 

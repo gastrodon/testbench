@@ -21,13 +21,7 @@
 include <params.scad>
 include <lib/BOSL2/std.scad>
 include <lib/BOSL2/threading.scad>
-use <label.scad>
-
 $slop = 0.1;
-
-// See label.scad: 0.2 is one layer at the coarsest height these parts
-// would ever print at, so the glyphs always straddle a slice plane.
-label_h = 0.2;
 
 thread_len = 9;             // full engagement depth of the holder
 light_bore = 9;             // clear aperture through the boss
@@ -41,7 +35,7 @@ gap = 30;
 test_bosses = [[lens_thread_d,       "11.88"],
                [lens_thread_d - 0.2, "11.68"]];
 
-module m12_boss(d, txt) {
+module m12_boss(d) {
     difference() {
         union() {
             cylinder(d = flange_d, h = flange_t);
@@ -54,18 +48,24 @@ module m12_boss(d, txt) {
         translate([0, 0, -1])
             cylinder(d = light_bore, h = flange_t + thread_len + 2);
     }
-    // The diameter, in millimetres, written on the part. The flange
-    // faces are both spoken for — the top may seat against the camera's
-    // holder and the bottom is a 9mm hole through a 22mm washer — so the
-    // label gets its own tab where nothing bears on it.
-    translate([0, flange_d / 2, 0])
-        label_tab(txt, label_h, flange_t, size = 4);
 }
 
-for (i = [0 : len(test_bosses) - 1])
-    translate([i * gap, 0, 0])
-        m12_boss(test_bosses[i][0], test_bosses[i][1]);
+// Centred on the origin so a plate can place the pair without knowing
+// how many bosses there are or how far apart they sit.
+module m12_coupon_pair() {
+    for (i = [0 : len(test_bosses) - 1])
+        translate([i * gap - gap * (len(test_bosses) - 1) / 2, 0, 0])
+            m12_boss(test_bosses[i][0]);
+}
+
+// The label strings live here, next to the diameters they describe, so a
+// plate cannot label a boss with the wrong number.
+function m12_label(i) = test_bosses[i][1];
+function m12_label_x(i) = i * gap - gap * (len(test_bosses) - 1) / 2;
+function m12_n() = len(test_bosses);
+
+m12_coupon_pair();
 
 echo(str("M12 coupon: nominal ", lens_thread_d, " and ",
          lens_thread_d - 0.2, " mm, pitch ", lens_thread_pitch));
-echo("each boss carries its own diameter on a tab; no recall required");
+echo("diameters are printed on the sheet beside each boss");
