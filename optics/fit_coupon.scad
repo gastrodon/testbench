@@ -5,12 +5,13 @@
 // multi-hour print with ~22cm^3 of plastic; this coupon is minutes, and
 // settles every one of them:
 //
-//   1. OBJECTIVE THREAD PITCH. The single biggest unknown in the whole
-//      design. obj_thread_pitch = 0.75 is a plausible guess, never
-//      measured (the crest count over 3.25mm was never done). If it is
-//      wrong the cell simply will not thread in, and the base is scrap.
-//      Three pitches are printed side by side so you can find out by
-//      trying rather than by counting crests under a loupe.
+//   1. OBJECTIVE THREAD PITCH — now MEASURED as M9x0.75, so this is no
+//      longer a coin-flip. The three blocks remain useful as a fit test:
+//      a printed thread carries its own tolerance on top of a correct
+//      pitch, and screwing the real cell into the 0.75 block confirms
+//      the print rather than the number. The 0.5 and 1.0 blocks are kept
+//      as controls — if the cell somehow threads into one of those
+//      instead, the measurement was wrong.
 //
 //   2. SNAP-FIT THROAT. 0.3mm of interference on a 4mm axle. Whether
 //      that clicks home, refuses to seat, or splits the arm depends

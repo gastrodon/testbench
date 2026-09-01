@@ -18,10 +18,13 @@ obj_thread_d = 9;                  // objective cell thread OD, mm
 obj_thread_engage = 3.25;          // thread engagement depth, mm
 obj_aperture = 3.4;                // front aperture, mm
 
-// assumed — objective thread pitch is an open question in the design doc
-// (crest-count-over-3.25mm still needs doing). 0.75mm is a plausible
-// small-plastic-thread guess, NOT a measurement. Confirm by test fit
-// before trusting this for anything but a first print.
+// MEASURED. This was the last assumption in the build and the one that
+// could have scrapped the base — a printed thread either matches the
+// cell's pitch or the cell will not go in. Measured as M9x0.75, which
+// happens to match the original guess; the value is unchanged but it is
+// now a fact rather than a plausible number.
+// Still worth a test fit before the long print: a printed thread carries
+// its own tolerance on top of a correct pitch.
 obj_thread_pitch = 0.75;
 
 // Depth of the threaded section: measured engagement plus lead-in. Lives
