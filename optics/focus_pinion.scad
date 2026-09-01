@@ -28,7 +28,10 @@ include <params.scad>
 include <lib/BOSL2/std.scad>
 include <lib/BOSL2/gears.scad>
 
-shaft_d = 4;                // through-bore for a metal shaft, mm
+// Printed bores must be LARGER than the rod. At exactly 4.0 the bore
+// surfaces were coincident with the 4.0 axle, and CGAL left two tiny
+// detached slivers behind — the part reported 3 bodies instead of 1.
+shaft_d = shaft_d_frame + 0.2;   // slip fit over the 4mm axle
 set_screw_d = 2.6;          // self-tapping M3 pilot, radial, locks part to shaft
 knob_h = 10;                // knob_d comes from params.scad
 flute_n = 16;

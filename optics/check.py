@@ -303,6 +303,74 @@ def check_rack_and_pinion(workdir: Path) -> bool:
     return ok_no_clash and ok_engaged and ok_phase and ok_identity
 
 
+def check_integrity(workdir: Path) -> bool:
+    """Per-part sanity that interference testing structurally cannot do.
+
+    Both checks here exist because a human spotted the defect in a render
+    after every clearance test passed. Neither failure mode involves two
+    parts touching, so no pairwise check could ever have seen them:
+
+      * a DISCONNECTED body floats free, attached to nothing. It is still
+        watertight and still interferes with nothing.
+      * a BLOCKED optical bore is solid where light must pass. It also
+        interferes with nothing — it is missing absence, not present
+        excess.
+    """
+    print("=" * 72)
+    print("PART INTEGRITY — connectivity and the optical path")
+    print("=" * 72)
+
+    # expected connected-body count. focus_pinion() is an assembly of
+    # three genuinely separate objects (gear, knob, stock axle), so 3 is
+    # correct there; the printed parts must each be exactly 1.
+    parts = [
+        ("base_mount", "use <objective_focus_mount.scad>\n", "base_mount();", 1),
+        ("carrier", "use <pcb_carrier.scad>\n", "pcb_carrier();", 1),
+        ("pinion", "use <focus_pinion.scad>\n", "focus_pinion();", 3),
+    ]
+    ok_all = True
+    meshes = {}
+    for name, hdr, body, want in parts:
+        m = scad_render(body, workdir / f"int_{name}.stl", extra_header=hdr)
+        meshes[name] = m
+        bodies = m.split(only_watertight=False)
+        ok = len(bodies) == want
+        ok_all &= ok
+        note = "" if ok else f"  <- expected {want}; something is floating free"
+        print(f"  {name:12s} {len(bodies)} connected "
+              f"{'body ' if len(bodies) == 1 else 'bodies'}  "
+              f"watertight={m.is_watertight}  {'PASS' if ok else 'FAIL'}{note}")
+        if not ok:
+            for i, b in enumerate(sorted(bodies, key=lambda x: -abs(x.volume))):
+                print(f"      body{i}: vol={abs(b.volume):9.1f} mm^3  "
+                      f"bbox {b.bounds[0].round(1)} .. {b.bounds[1].round(1)}")
+    print()
+
+    # The light path: march up the optical axis through the base. Any
+    # sample inside the solid means the bore is closed.
+    base = meshes["base_mount"]
+    zs = np.arange(-1.0, base.bounds[1][2] + 1.0, 0.25)
+    axis = np.column_stack([np.zeros_like(zs), np.zeros_like(zs), zs])
+    inside = base.contains(axis)
+    clear = not inside.any()
+    ok_all &= clear
+    if clear:
+        print(f"  optical axis CLEAR through the base "
+              f"(z {zs.min():.1f} .. {zs.max():.1f})   PASS")
+        for z in (0.5, 4.0, 6.0, 8.0):
+            r = np.arange(0, 11, 0.1)
+            p = np.column_stack([r, np.zeros_like(r), np.full_like(r, z)])
+            ins = base.contains(p)
+            rad = r[ins].min() if ins.any() else r.max()
+            print(f"      z={z:4.1f} mm   clear to r={rad:.2f} mm")
+    else:
+        blocked = zs[inside]
+        print(f"  optical axis BLOCKED at z={blocked.min():.2f}..{blocked.max():.2f}"
+              f"   FAIL  <- no light path")
+    print()
+    return ok_all
+
+
 def check_assembly(workdir: Path) -> bool:
     """Whole-assembly pairwise interference, parts in their assembled
     positions. Answers the question a per-part check cannot: given these
@@ -428,6 +496,7 @@ def main() -> int:
     workdir = Path(tempfile.mkdtemp(prefix="optics-check-"))
     try:
         results = {
+            "integrity": check_integrity(workdir),
             "rack_and_pinion": check_rack_and_pinion(workdir),
             "assembly": check_assembly(workdir),
         }

@@ -58,29 +58,41 @@ arm_t = 3;
 arm_x = rack_slot_half + arm_t / 2;          // arm centreline
 bearing_d = shaft_d_frame + 0.35;            // running clearance on the shaft
 bearing_boss_d = 11;
-web_y = -32;   // must clear the gear OD; derived below, not guessed
-web_t = 3;
+// The web has to OVERLAP the arms, which reach y=-25.8 at the bearing
+// boss. Pushed out to -32 to clear the gear it stopped touching them and
+// became a separate floating body — still watertight, still passing
+// every interference check, connected to nothing. Gear clearance is the
+// gear-pocket cut's job, not the web's position.
+web_y = -27;
+web_t = 5;
 
 module objective_thread_bore() {
     // Real printed 9mm thread, not a self-tapping guess. Pitch is
     // unconfirmed (see params.scad) — reprint once measured.
+    //
+    // The thread alone does NOT open the floor: it stops at
+    // obj_bore_depth, leaving solid plastic above it and no light path.
+    // A clear bore carries on through, slightly narrower than the thread
+    // so the cell bottoms against a positive shoulder instead of being
+    // screwed in to an arbitrary depth.
     up(-0.5)
         threaded_rod(
             d = obj_thread_d, l = obj_bore_depth + 0.5, pitch = obj_thread_pitch,
             internal = true, bevel2 = true, blunt_start1 = false,
             anchor = BOTTOM
         );
+    translate([0, 0, obj_bore_depth - 0.01])
+        cylinder(d = obj_thread_d - 1.2, h = floor_t - obj_bore_depth + 1.02);
 }
 
-module base_floor() {
-    // Closed floor at the specimen end, carrying the 150x cell. The cell
-    // threads in from below; light passes up the bore into the carrier's
-    // tube. Because the floor is part of the FIXED body, the objective
-    // stays put and focus is purely the carrier's travel.
-    difference() {
-        cylinder(d = sleeve_od, h = floor_t);
-        objective_thread_bore();
-    }
+module base_floor_solid() {
+    // Just the solid disc. Its bore is subtracted at the TOP level, not
+    // here: base_mount() unions this with a solid sleeve cylinder that
+    // spans z=0 upward, which would refill any hole cut inside this
+    // module. Subtracting locally and then unioning something solid over
+    // it left the floor completely closed — no light path at all, and
+    // nothing flagged it because a blocked bore interferes with nothing.
+    cylinder(d = sleeve_od, h = floor_t);
 }
 
 // --- Technic pin breakout geometry ---
@@ -197,17 +209,21 @@ module base_mount() {
     difference() {
         union() {
             cylinder(d = sleeve_od, h = sleeve_len);
-            base_floor();
+            base_floor_solid();
             translate([0, 0, breakout_z])
                 technic_breakout_solid();
             pinion_yoke_solid();
         }
 
-        // Bore starts above the floor, so the floor stays solid for the
-        // objective thread. No clamp slot or clamp screw any more: the
+        // Bore starts above the floor; the floor keeps its own smaller
+        // threaded opening. No clamp slot or clamp screw any more: the
         // carrier is positioned by the rack and pinion, not pinched.
         translate([0, 0, floor_t])
             cylinder(d = sleeve_id, h = sleeve_len);
+
+        // Objective thread + its clear optical path, subtracted LAST so
+        // nothing unioned above can fill it back in.
+        objective_thread_bore();
 
         pinion_yoke_cuts();
     }
