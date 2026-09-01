@@ -86,7 +86,7 @@ translate([0, 0, -carrier_z_home / 2])
         translate([0, 0, carrier_z + ex_carrier]) pcb_carrier();
 
     color("FireBrick")
-        translate([-ex_pinion, rack_y - pinion_dist, pinion_z])
+        translate([ex_pinion, rack_y - pinion_dist, pinion_z])
             rotate([0, 90, 0])
                 rotate([0, 0, pinion_phi])
                     focus_pinion();

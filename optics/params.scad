@@ -24,6 +24,11 @@ obj_aperture = 3.4;                // front aperture, mm
 // before trusting this for anything but a first print.
 obj_thread_pitch = 0.75;
 
+// Depth of the threaded section: measured engagement plus lead-in. Lives
+// here rather than in the base part because fit_coupon.scad needs the
+// identical value — a coupon that tests a different depth tests nothing.
+obj_bore_depth = obj_thread_engage + 2;
+
 // chosen — rack-and-pinion focus mechanism (BOSL2 gears.scad)
 // pressure_angle must match between rack() and spur_gear() or they won't mesh.
 //

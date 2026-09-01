@@ -141,6 +141,39 @@
           firmware-probe = mkFirmware "probe";
           firmware-light-breathe = mkFirmware "light-breathe";
 
+          # STLs for every printable part, rendered reproducibly.
+          #   nix build .#optics-stl && ls result/
+          optics-stl = pkgs.runCommand "testbench-optics-stl"
+            { nativeBuildInputs = [ pkgs.openscad ]; }
+            ''
+              mkdir -p build $out
+              cp ${./optics}/*.scad build/
+              ln -s ${opticsLib} build/lib
+              for part in base_mount carrier pinion_gear pinion_knob fit_coupon; do
+                case $part in
+                  base_mount)  src=objective_focus_mount.scad; body="base_mount();" ;;
+                  carrier)     src=pcb_carrier.scad;           body="pcb_carrier();" ;;
+                  pinion_gear) src=focus_pinion.scad;          body="focus_gear();" ;;
+                  pinion_knob) src=focus_pinion.scad;          body="focus_knob();" ;;
+                  fit_coupon)  src=fit_coupon.scad;            body="" ;;
+                esac
+                if [ -z "$body" ]; then
+                  openscad -o $out/$part.stl build/$src
+                else
+                  cat > build/_$part.scad <<EOF
+              include <params.scad>
+              include <lib/BOSL2/std.scad>
+              include <lib/BOSL2/gears.scad>
+              include <lib/BOSL2/threading.scad>
+              \$slop = 0.1;
+              use <$src>
+              $body
+              EOF
+                  openscad -o $out/$part.stl build/_$part.scad
+                fi
+              done
+            '';
+
           optics-calibration = pkgs.runCommand "testbench-optics-calibration"
             { nativeBuildInputs = [ pkgs.openscad ]; }
             ''

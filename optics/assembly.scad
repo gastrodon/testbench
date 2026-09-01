@@ -82,7 +82,7 @@ $slop = 0.1;
 // Each part moves along the axis it is actually assembled along, so the
 // exploded view reads as an assembly instruction rather than a scatter.
 ex_carrier = explode * 60;    // carrier (face + tube) lifts out, +Z
-ex_pinion  = explode * 38;    // pinion withdraws along its own axis, -X
+ex_pinion  = explode * 38;    // pinion withdraws along its own axis, +X
 
 color("SteelBlue")
     base_mount();
@@ -95,7 +95,7 @@ color("Goldenrod")
 // Grounded: fixed z, unaffected by carrier travel or the carrier's
 // explode offset. Only its rotation changes with focus_t.
 color("FireBrick")
-    translate([-ex_pinion, rack_y - pinion_dist, pinion_z])
+    translate([ex_pinion, rack_y - pinion_dist, pinion_z])
         rotate([0, 90, 0])
             rotate([0, 0, pinion_phi])   // about the pinion's own axis
                 focus_pinion();

@@ -28,7 +28,7 @@ include <lib/Technic.scad/Technic.scad>
 
 $slop = 0.1; // FDM print clearance for the internal thread mask, mm; tune per-printer
 
-obj_bore_depth = obj_thread_engage + 2; // + lead-in beyond the measured engagement
+// obj_bore_depth comes from params.scad — fit_coupon.scad shares it
 floor_t = obj_bore_depth + 1.5;    // base floor carrying the objective thread
 
 // Sleeve runs up to just below the rack's lowest position (z=59.4 at
@@ -58,10 +58,16 @@ arm_t = 3;
 arm_x = rack_slot_half + arm_t / 2;          // arm centreline
 bearing_d = shaft_d_frame + 0.35;            // running clearance on the shaft
 bearing_boss_d = 11;
-arm_root_z = 26;           // centre of the arm's root pad on the sleeve
-arm_root_h = 44;           // tall root: shallow, obtuse meeting with the base
-root_y_out = rack_y - 3;   // outboard edge of the root pad
-root_y_in = -7.0;          // inboard edge: clear of the bore at x=arm_x
+// The strut is ONE straight member. It leaves the bearing boss and runs
+// down at a slight lean to land on the sleeve at foot_z — a little above
+// where the base ends, not at its corner. That gives a single obtuse
+// junction (~172 deg to the sleeve wall) instead of the old shape, which
+// ran parallel to the sleeve for 44mm and then turned, leaving a corner
+// plus a radial blend where it met the base.
+foot_z = 12;               // where the strut lands, just above the base end
+foot_h = 11;               // footprint along the tube axis
+foot_y_out = -13.5;        // outboard edge of the foot
+foot_y_in = -7.5;          // inboard edge: clear of the bore at x=arm_x
 bridge_drop = 11;          // bridge sits below the gear, back stays open
 bridge_d = 9;
 // Snap-fit bearing: the bore opens upward through a throat slightly
@@ -163,13 +169,13 @@ module pinion_yoke_solid() {
                 // like this lets it meet the base at a shallow, obtuse
                 // angle instead of standing off it in two right-angle
                 // steps — smoother load path and no overhang to bridge.
-                // The pad must overlap the sleeve WALL without reaching
-                // into the bore. At x=+/-arm_x the bore surface is only
-                // y=-6.1, so a pad running to y=+1 (as an earlier version
-                // did) sits squarely in the carrier tube's path — a
-                // 3.1mm^3 collision the interference check caught.
-                translate([0, (root_y_out + root_y_in) / 2, arm_root_z])
-                    cuboid([arm_t, root_y_in - root_y_out, arm_root_h],
+                // Foot. It must overlap the sleeve WALL without reaching
+                // into the bore: at x=+/-arm_x the bore surface is only
+                // y=-6.1, so a pad running further in sits squarely in
+                // the carrier tube's path — a 3.1mm^3 collision the
+                // interference check caught once already.
+                translate([0, (foot_y_out + foot_y_in) / 2, foot_z])
+                    cuboid([arm_t, foot_y_in - foot_y_out, foot_h],
                            rounding = 2.5, edges = "X");
                 translate([-arm_t / 2, pinion_y, pinion_z])
                     rotate([0, 90, 0])
