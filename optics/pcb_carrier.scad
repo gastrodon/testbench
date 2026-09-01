@@ -26,6 +26,21 @@ boss_d = holder_screw_d + 3.4;
 screw_hole_d = holder_screw_d - 0.3;   // undersized: self-tapping screw bites
 boss_h = 2.2;
 
+// WHEN THESE BECOME AN M12 BOSS: the thread will print TIP-FIRST, on the
+// bed. This part is printed face-down, so the bosses' free ends are the
+// first layer — measured on carrier.stl, the print is two disconnected
+// islands here until the face plate bridges them at z=2.2.
+//
+// That means the lead-in threads, the ones that have to start the screw,
+// are exactly the ones carrying elephant foot. Flipping the part to fix
+// it is worse: mouth-down puts the squish on the tube's 0.3mm/side
+// bearing fit instead, and drops the rack into the top half of an 85mm
+// print. Keep face-down and relieve the first thread or two instead.
+//
+// Note m12_coupon.scad prints the OTHER way up (flange on the bed, thread
+// tip in free air), so it answers which diameter clears but says nothing
+// about the lead-in.
+
 tube_od = carrier_tube_od;
 tube_id = tube_od - 2 * wall;
 tube_len = carrier_tube_len;

@@ -67,7 +67,7 @@ shaft_to_knob = knob_standoff - pinion_full_w / 2;
 // The gear station has to live between the yoke arms, whose inner faces
 // sit at +/-rack_slot_half. With the taper mirrored the station is
 // symmetric about the rack midplane, so one check covers both ends.
-yoke_slot_half = gear_thickness / 2 + 3;
+yoke_slot_half = rack_slot_half;   // from params.scad, shared with the mount
 gear_station_bottom = pinion_full_w / 2 + taper_h;   // same both ends now
 assert(gear_station_bottom <= yoke_slot_half - clearance,
        str("pinion taper fouls the yoke arm: needs ", gear_station_bottom,

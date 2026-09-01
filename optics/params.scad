@@ -104,6 +104,25 @@ knob_cove_pow = 2.2;
 // a smaller footprint that grows, which is the usual dodge for elephant
 // foot on a wide disc.
 knob_chamfer = 1.0;
+
+// Half-width of the slot between the yoke arms — the axial room the whole
+// gear station has to live in.
+//
+// LIVES HERE BECAUSE THREE FILES NEED IT. It was written out longhand in
+// objective_focus_mount.scad (as rack_slot_half), focus_pinion.scad (as
+// yoke_slot_half, where it backs the assert that the tooth taper clears
+// the arm) and clip_coupon.scad (as rack_slot_half_pub). Three copies of
+// one formula under three names: change the mount and the pinion's assert
+// would go on checking a number nothing used, which is the exact drift
+// this project has already been bitten by twice.
+//
+// The +3 is no longer what the old comment claimed. It used to be room
+// for a separate 45-degree cone under the gear, sized (10.5-6)/2 = 2.25.
+// That cone is gone; the teeth taper into the shaft themselves, and the
+// station now needs pinion_full_w/2 + taper_h = 6.448mm each side against
+// the 6.7mm this allows. focus_pinion.scad asserts that, so the margin is
+// checked rather than remembered.
+rack_slot_half = gear_thickness / 2 + 3;
 guide_rod_d = 4;           // smooth guide rod diameter the PCB carrier rides on, mm
 // The pinion shaft is PRINTED as part of the pinion, not stock rod. It
 // was 4mm only because that is a stock size; nothing requires it now, so

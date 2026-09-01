@@ -53,11 +53,8 @@ breakout_z = 20;   // explicit, not sleeve_len/2 — the sleeve length changed o
 // so the arms sit outside |x|=4 and the web sits beyond y=-23.47.
 pinion_y = rack_y - gear_dist(mod = gear_mod, teeth1 = pinion_teeth,
                               teeth2 = 0, pressure_angle = gear_pressure_angle);
-// 3mm per side, not 1.5. The pinion's gear sits on a 45-degree cone that
-// flares from the 6mm shaft out to the 10.5mm gear OD, which needs
-// (10.5-6)/2 = 2.25mm of axial room beside the gear face. At 1.5mm the
-// cone buried itself in the arm — a 2.3mm^3 collision the check caught.
-rack_slot_half = gear_thickness / 2 + 3;
+// rack_slot_half comes from params.scad — the pinion's taper clearance
+// assert depends on the same number, so it cannot live here.
 arm_t = 3;
 arm_x = rack_slot_half + arm_t / 2;          // arm centreline
 bearing_d = shaft_d_frame + 0.35;            // running clearance on the shaft

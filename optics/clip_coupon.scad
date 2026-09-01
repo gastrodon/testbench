@@ -60,7 +60,7 @@ module clip_coupon() {
 // mirror the three numbers this file needs. They are derived the same
 // way there; if they drift, the foot is the wrong size and it shows.
 arm_t_pub = 3;
-rack_slot_half_pub = gear_thickness / 2 + 3;
+rack_slot_half_pub = rack_slot_half;   // from params.scad
 arm_x_pub = rack_slot_half_pub + arm_t_pub / 2;
 snap_throat_pub = shaft_d_frame - 0.3;
 
