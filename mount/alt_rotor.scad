@@ -42,14 +42,20 @@ use <gt2.scad>
 
 rotor_face_z = -gt2_envelope_h() / 2;   // inboard face of the wheel
 
-// Axle stations, walked inboard from the wheel's inboard face. Written as
-// a running sum rather than four hand-typed offsets, because these have to
-// stay consistent with alt_rotor_offset_y in params.scad -- the same walk,
-// in the same order.
-z_thread_start  = rotor_face_z - rotor_hub_h;                    // hub ends
-z_thread_end    = z_thread_start - axle_thread_len;
-z_journal_end   = z_thread_end - axle_journal_len;
-z_tip_end       = z_journal_end - axle_tip_len;
+// Axle stations, measured from the TINE'S CENTRE PLANE outward -- not
+// chained off the hub by running subtraction.
+//
+// Chaining was wrong and the checker caught it: an extra 1.5mm of thread
+// run-out pushed the 6.35mm thread 1.5mm into the bracket gap, where the
+// tine's 5.5mm bore is. 9.9 mm3 of thread inside the bearing bore, and
+// the tine would not have gone on. Anchoring each station to the real
+// feature it mates with makes that unrepresentable: the journal IS the
+// gap, the thread IS the bracket.
+z_tine_c        = -alt_rotor_offset_y;                  // tine centre plane
+z_journal_out   = z_tine_c + bracket_gap / 2;           // near bracket face
+z_journal_in    = z_tine_c - bracket_gap / 2;           // far bracket face
+z_thread_out    = z_journal_out + bracket_t;            // bracket outer face
+z_tip_end       = z_journal_in - axle_tip_len;
 
 module alt_rotor() {
     assert_fastener_fits();
@@ -66,7 +72,7 @@ constraint -- measure it.");
             union() {
                 gt2_pulley(axis_teeth);              // wheel, centred Z=0
                 // Hub: stands the wheel off clear of the tube.
-                translate([0, 0, z_thread_start])
+                translate([0, 0, z_thread_out])
                     cylinder(h = rotor_hub_h + 1, d = rotor_hub_d);
             }
             // Lighten the wheel. A solid 102mm disc is a lot of filament
@@ -78,6 +84,12 @@ constraint -- measure it.");
                         cylinder(h = 60, d = 16, center = true);
         }
 
+        // Consistency check: walking out from the tine must land exactly
+        // where the hub ends. If these ever disagree, one of the two walks
+        // has drifted from the other (rule 3).
+        assert(abs(z_thread_out - (rotor_face_z - rotor_hub_h)) < 1e-6,
+               "alt_rotor: axle stations and alt_rotor_offset_y disagree");
+
         // 1/4-20 male thread into the brass insert. Modelled as a plain
         // cylinder at MAJOR diameter, not as cut threads: this is the one
         // load-bearing thread in the mechanism and it gets settled by
@@ -85,13 +97,13 @@ constraint -- measure it.");
         // settled its M12 and the way the GT2 flank is being settled.
         // Modelling a thread form here would look authoritative and prove
         // nothing.
-        translate([0, 0, z_thread_end])
-            cylinder(h = axle_thread_len, d = alt_bolt_major);
+        translate([0, 0, z_journal_out])
+            cylinder(h = bracket_t, d = alt_bolt_major);
 
         // Journal: what the yoke tine actually rides on. Capped by the
         // insert's bore, because it has to pass through it on the way in.
-        translate([0, 0, z_journal_end])
-            cylinder(h = axle_journal_len, d = axle_journal_d);
+        translate([0, 0, z_journal_in])
+            cylinder(h = bracket_gap, d = axle_journal_d);
 
         // M4 tip through the plain hole, protruding for the lock nut. The
         // step up to the journal is the shoulder that keeps the tine free.

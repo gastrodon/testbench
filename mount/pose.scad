@@ -28,9 +28,17 @@ module telescope_proxy() {
     translate([-tube_len_behind, 0, tube_bottom_above_pivot + tube_od / 2])
         rotate([0, 90, 0])
             cylinder(h = tube_len_behind + 120, d = tube_od);
+    // The brackets are PIERCED -- solid cubes made the axle passing
+    // through them read as interference. A proxy defect, not a design one.
     for (s = [-1, 1])
-        translate([0, s * (bracket_gap + bracket_t) / 2, 0])
-            cube([bracket_w, bracket_t, alt_bore_c_to_bottom * 2], center = true);
+        difference() {
+            translate([0, s * (bracket_gap + bracket_t) / 2, 0])
+                cube([bracket_w, bracket_t, alt_bore_c_to_bottom * 2],
+                     center = true);
+            rotate([90, 0, 0])
+                cylinder(h = 200, center = true,
+                         d = s > 0 ? insert_id + 0.2 : bracket_clear_d);
+        }
 }
 
 module nema17_proxy() {

@@ -242,8 +242,15 @@ axle_tip_thread = 4.0;   // CHOSEN -- M4. Comfortably under the journal so
 // shoulder trick alt_sleeve used, now integral: without it, tightening
 // the lock nut squeezes the tine and the altitude axis seizes -- a
 // mechanism that moves as one rigid lump and passes every geometric test.
-axle_journal_len = bracket_gap;                          // DERIVED
-axle_thread_len  = bracket_t + 1.5;                      // DERIVED
+axle_journal_len = bracket_gap;   // DERIVED -- the journal IS the gap
+axle_thread_len  = bracket_t;     // DERIVED -- the thread IS the bracket.
+                                  // It was bracket_t + 1.5 for "run-out",
+                                  // and that 1.5mm pushed the 6.35 thread
+                                  // into the gap where the tine's 5.5 bore
+                                  // is: 9.9 mm3 inside the bearing, and a
+                                  // tine that would not go on. Run-out
+                                  // belongs on the HUB side, where there is
+                                  // room, not on the side facing the gap.
 axle_tip_len     = bracket_t + 4.0;   // through the far bracket, with
                                       // enough protruding for the nut
 
