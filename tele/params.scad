@@ -56,10 +56,18 @@ boss_bore_d = 9;                   // light path through the boss — proven wal
 flange_od = focuser_bore + 6;
 flange_t = 2.0;
 
-// Nose length: short. It only has to give the set screws (M3, two at
-// 120 deg per EVA-319) enough purchase to grip, not carry any load itself
-// — the flange stops axial travel and the screws stop rotation.
-nose_len = 8;
+// Nose length. FOUND SHORT ON THE FIRST PRINT: 8mm left too little of the
+// nose past the focuser's set-screw holes for them to actually bite —
+// workable by hand on this print (screws still grip, just barely) but not
+// something to repeat on purpose. Bumped generously rather than by a
+// small margin: drawtube_travel is ~90mm, so 32mm still leaves plenty of
+// focus range, and there was no reason to re-guess a second undersized
+// value when the room was available. Still provisional — nobody has
+// confirmed the set-screw hole position relative to the focuser opening,
+// so this is "clearly enough", not a measured number. Original reasoning
+// (screws only need to grip, not carry load — the flange stops axial
+// travel) still holds.
+nose_len = 32;
 
 // Cone from the nose/flange OD down to the thread OD, same self-support
 // angle the microscope build settled on (45 deg is the floor, not the

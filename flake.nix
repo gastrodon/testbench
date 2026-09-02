@@ -183,6 +183,7 @@
             pkgs.esptool
             pkgs.usbutils
             opticsPython
+            pkgs.prusa-slicer
           ];
           shellHook = ''
             if [ ! -e optics/lib ]; then
