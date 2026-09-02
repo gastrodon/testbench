@@ -56,6 +56,7 @@ rotor_lip_depth = 2.5;
 rotor_face_z    = -gt2_envelope_h() / 2;  // inboard face of the wheel, local Z
 
 module alt_rotor() {
+    assert_fastener_fits();
     assert(is_num(axis_teeth), "alt_rotor: params.scad not included");
     assert(rotor_lip_depth > 0.8,
            "alt_rotor: lip too shallow to key anything against the bracket");

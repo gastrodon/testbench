@@ -115,24 +115,31 @@ tooth_width     = 1.494;  // approximation of the 2GT groove width
 // threaded insert. The screw axis IS the altitude axis.
 //
 // MEASURED (EVA-319): the insert is 1/4"-20 UNC (bore 6.31 vs 6.35 major
-// spec; 4 threads over 4.9mm ~ 1.225 pitch vs 1.27 spec), and its bore
-// centreline sits 9.25mm above the telescope's bottom surface.
+// spec; 4 threads over 4.9mm ~ 1.225 pitch vs 1.27 spec).
 //
-// EVERYTHING ELSE ABOUT THESE BRACKETS IS UNMEASURED. The five ASSUMED
-// values below are the blocking measurement list for this whole build --
-// they set the yoke's thickness, the sleeve length, and whether the
-// anti-rotation lip on the rotor can grip anything at all.
+// Most of this block is now MEASURED off the real scope (eva, 2026-09-02):
+// bracket_gap, bracket_t, bracket_clear_d and the axle height. What is
+// still ASSUMED here is bracket_w and bracket_free_r -- the bracket's
+// face width and how much room the rotor hub has before it fouls tube
+// structure -- plus everything about the tube itself.
+//
+// THE MEASUREMENTS BROKE AN ASSUMPTION. bracket_clear_d came back at 6.25,
+// which is UNDER a 1/4-20's 6.35 major diameter, so a 1/4-20 shank does
+// not pass through the plain hole. Both the current design and the
+// integral-axle proposal route the fastener that way. Asserted below.
 
 alt_thread_size    = "1/4-20";  // MEASURED -- EVA-319, confirmed UNC
 alt_bolt_major     = 6.35;      // STANDARD -- 1/4" major dia, mm
-alt_bore_c_to_bottom = 9.25;    // MEASURED -- EVA-319, bore centreline
-                                // above the tube's bottom surface
+alt_bore_c_to_bottom = 10.25;   // MEASURED (eva, 2026-09-02) -- axle
+                                // centreline above the mount's base plate.
+                                // Supersedes EVA-319's 9.25; re-measured
+                                // directly off the scope.
 
-bracket_gap        = 26.0;  // ASSUMED -- clear span between the two
-                            // brackets' facing surfaces. Sets yoke tine
-                            // thickness and sleeve length. MEASURE.
-bracket_t          = 3.0;   // ASSUMED -- sheet/plate thickness of one
-                            // bracket. Sets the anti-rotation lip. MEASURE.
+bracket_gap        = 16.5;  // MEASURED (eva, 2026-09-02) -- clear span
+                            // between the brackets' facing surfaces.
+                            // Much narrower than the 26 assumed, so the
+                            // tine gets correspondingly thinner.
+bracket_t          = 4.9;   // MEASURED (eva, 2026-09-02) -- one bracket
 bracket_w          = 20.0;  // ASSUMED -- bracket width across its flat
                             // face, i.e. how much material the rotor's
                             // lip has to hook onto. MEASURE.
@@ -140,8 +147,15 @@ bracket_free_r     = 18.0;  // ASSUMED -- radius, about the alt axis, that
                             // is clear of telescope structure on the near
                             // bracket's OUTER face. The rotor hub must fit
                             // inside this or it fouls the tube. MEASURE.
-bracket_clear_d    = 6.8;   // ASSUMED -- the near bracket's plain hole
-                            // diameter (>= alt_bolt_major). MEASURE.
+bracket_clear_d    = 6.25;  // MEASURED (eva, 2026-09-02) -- the plain
+                            // hole. NOTE this is SMALLER than a 1/4-20's
+                            // 6.35mm major diameter, which is a physical
+                            // conflict, not a rounding detail: a 1/4-20
+                            // shank does not pass through a 6.25 hole.
+                            // Asserted on below rather than absorbed
+                            // silently -- it decides whether either the
+                            // current design OR the integral-axle idea can
+                            // be assembled at all.
 
 // Tube geometry behind the pivot -- decides whether the eyepiece end
 // collides with the yoke or the base at high altitude angles.
@@ -159,8 +173,14 @@ tube_od            = 60.0;  // ASSUMED -- OD of the 50mm-objective tube.
 // the altitude axis -- and EVERY piece of the yoke inside the tube's width
 // has to fit within it, at every altitude angle. It sets the pivot boss
 // diameter and caps how tall the motor arm may be.
-tube_bottom_above_pivot = 9.25;  // ASSUMED (worst case) -- MEASURE. Almost
-                                 // certainly larger on the real scope.
+tube_bottom_above_pivot = 10.25; // ASSUMED (worst case), tracking the
+                                 // re-measured alt_bore_c_to_bottom. Still
+                                 // a different quantity from that one --
+                                 // this is the TUBE's surface standoff,
+                                 // that one is the axle above the base
+                                 // plate, and they coincide only if the
+                                 // tube sits flush with the bracket
+                                 // bottom. MEASURE.
 tube_len_behind    = 320.0; // ASSUMED -- how far the tube extends from the
                             // alt axis toward the eyepiece.
                             //
@@ -177,6 +197,25 @@ tube_len_behind    = 320.0; // ASSUMED -- how far the tube extends from the
                             // Checked as a swept-clearance case, not a
                             // static one -- see check.py.
 
+
+// The plain hole must actually pass the fastener that goes through it.
+// This is a hard physical conflict, not a tolerance to absorb: 6.25 < 6.35
+// means the bolt does not fit, full stop. Fails the build loudly rather
+// than producing STLs for a mechanism that cannot be assembled.
+// Scoped to the parts that actually route the fastener, NOT file scope --
+// a file-scope assert also killed gt2_coupon, which has no opinion about
+// brackets and is the very thing we want printed early. An assert that
+// blocks unrelated work gets commented out, and then it protects nothing.
+module assert_fastener_fits() {
+    assert(bracket_clear_d >= alt_bolt_major,
+           str("the plain bracket hole measures ", bracket_clear_d,
+               "mm, which is under a 1/4-20's ", alt_bolt_major,
+               "mm major diameter -- the shank does not pass through it. ",
+               "CHECK: try a real 1/4-20 through the hole. If it goes, the ",
+               "hole is nearer 6.35 and the caliper reading was tight. If ",
+               "it does not, either the hole gets opened up or the ",
+               "fastener enters from the threaded side instead."));
+}
 
 // =====================================================================
 // 4. STEPPERS -- NEMA 17, three available with 15mm D-shafts

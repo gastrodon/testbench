@@ -27,6 +27,7 @@ include <params.scad>
 // and the telescope rattles on its own pivot.
 
 module alt_sleeve() {
+    assert_fastener_fits();
     assert(is_num(yoke_tine_t) && yoke_tine_t > 0,
            "alt_sleeve: params.scad not included, or bracket_gap is bad");
     assert(sleeve_od < bracket_clear_d + 6,

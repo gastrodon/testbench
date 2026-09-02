@@ -46,6 +46,7 @@ module yoke_blade() {
 }
 
 module yoke() {
+    assert_fastener_fits();
     assert(is_num(yoke_tine_t) && yoke_tine_t > 0,
            "yoke: params.scad not included, or bracket_gap is nonsense");
     // Rule 2: if this ever went negative or undef the blade would still
