@@ -112,13 +112,25 @@ module nosepiece() {
 
 // Print orientation: BOSS DOWN, flipped from how it is modelled above.
 // The alternative (nose-down, i.e. as-modelled with no flip) puts the
-// nose/flange step's underside — a ~4mm-wide flat annulus, and the exact
-// face that seats against the focuser's drawtube end — hanging in the
-// air as an unsupported 90 deg overhang; sag there is sensor tilt at the
-// seating datum, not just cosmetic. Boss-down instead makes the taper
+// nose/flange step's underside — a ~3.25mm-wide flat annulus, and the
+// exact face that seats against the focuser's drawtube end — hanging in
+// the air as an unsupported 90 deg overhang; sag there is sensor tilt at
+// the seating datum, not just cosmetic. Boss-down instead makes the taper
 // cone the self-supporting widening surface (identical situation to the
 // microscope carrier's own boss-down print, same taper_angle floor), and
 // costs nothing in back-focus since it is a rotation, not new material.
+//
+// RE-EXAMINE THIS at the current nose_len (32mm, up from the 8mm this
+// call was originally made against). Boss-down now spends most of the
+// part's height as a slender nose_len-tall column standing ON TOP of a
+// comparatively short, narrow base (boss+cone, ~16mm) instead of resting
+// on the bed — the opposite of a stable print, and worse the longer
+// nose_len gets. Nose-down would put that same 32mm down as a wide,
+// direct-to-bed cylinder instead, trading a small (~3.25mm radial, 2mm
+// tall) overhang for a much shorter, wider, more stable base. Whichever
+// orientation actually gets used, verify it against nose_len at print
+// time rather than trusting this comment's math — it was written for a
+// specific length that has already changed once.
 module nosepiece_printable() {
     translate([0, 0, total_h])
         rotate([180, 0, 0])
