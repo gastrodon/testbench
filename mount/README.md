@@ -175,6 +175,19 @@ as passing.
 Every number `check.py` uses is read back out of OpenSCAD at runtime. It
 restates nothing.
 
+## Current verdict
+
+`check.py`, last run: **22 part pairs classified, 0 unchecked.** All
+geometry passes — the 8:1 ratio is exact, the wheel carries its 160
+grooves (counted off the mesh, not assumed), the belt solve round-trips
+to 0.001 mm, the thrust face and the altitude journal both show real
+distributed contact.
+
+The only remaining failures are the **altitude reach** group —
+`telescope` against `yoke` / `az_table` / `base` at 60–75°, plus the
+computed ceiling. They are one issue with one cause, `tube_len_behind`,
+and they are left failing on purpose. See the section above.
+
 ## Open items, not silently designed around
 
 - **Unlimited azimuth means the altitude motor's cable has to go

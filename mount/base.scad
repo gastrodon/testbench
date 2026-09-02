@@ -18,9 +18,6 @@
 
 include <params.scad>
 
-az_motor_plate_t = 5.0;
-motor_plate_z    = base_plate_t;   // motor sits on top of the plate
-
 module base() {
     assert(is_num(az_post_d), "base: params.scad not included");
     assert(base_plate_r > az_thrust_r,

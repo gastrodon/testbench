@@ -70,8 +70,16 @@ module alt_rotor() {
             translate([0, 0, rotor_face_z - rotor_hub_h])
                 cylinder(h = rotor_hub_h + 1, d = rotor_hub_d);  // hub, -Z
             // Anti-rotation jaws straddling the bracket's outer edge.
+            //
+            // Offset by `clearance` so the jaws' inner faces sit just
+            // outside the bracket rather than exactly ON it. Flush was the
+            // first version: the two faces were mathematically coincident,
+            // which measured as 75 mm3 of interpenetration and would have
+            // been a jaw that cannot be pushed over the bracket at all.
+            // The 0.25mm of slop is also the keying backlash -- small
+            // against 0.225 deg per full step.
             for (s = [-1, 1])
-                translate([s * (bracket_w / 2 + wall / 2),
+                translate([s * (bracket_w / 2 + clearance + wall / 2),
                            0,
                            rotor_face_z - rotor_hub_h - rotor_lip_depth / 2])
                     cube([wall, rotor_hub_d * 0.7, rotor_lip_depth],
