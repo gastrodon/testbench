@@ -75,6 +75,28 @@ Anti-rotation: bolt friction alone would slip and lose steps silently, so
 the rotor hub has a **lip** that hooks over the near bracket's outer edge.
 Its shape depends on two unmeasured bracket dimensions — see below.
 
+## The tightest budget in the design: 9.25 mm around the pivot
+
+The tube's underside sweeps a cylinder about the altitude axis, and with
+`tube_bottom_above_pivot` at the assumed 9.25 mm that cylinder is *tiny*.
+**Everything the yoke puts inside the tube's width has to fit under it, at
+every altitude angle** — not just at 0° and 90°. That single constraint
+sets the pivot boss diameter (16.5 mm, leaving only a 2.5 mm wall over the
+sleeve bore) and forces the motor arm's inboard beam to duck under a trim
+plane. Two separate features violated it independently before it was
+written down once.
+
+It also drives the altitude wheel outboard. A 103 mm wheel on a pivot that
+close to the tube cuts straight through the telescope, so `rotor_hub_h` is
+**derived** — it stands the wheel's inboard face 3 mm clear of the tube
+surface, which needs a 17 mm hub. That is a long cantilever carrying a big
+wheel and is the least rigid thing in the assembly.
+
+`tube_bottom_above_pivot` is ASSUMED at the worst case and is deliberately
+*not* the same number as the measured `alt_bore_c_to_bottom` — that one is
+measured against the mount lug's bottom face, and the brackets hang below
+the tube. Measuring it is likely to relax all of the above at once.
+
 ## Why the yoke is tall
 
 Not styling. A 160T wheel is ~102 mm across and hangs ~51 mm below the
@@ -101,13 +123,39 @@ much damage a wrong guess does:
    `bracket_w`, `bracket_free_r`, `bracket_clear_d`. These set the tine
    thickness, the sleeve length, and whether the anti-rotation lip grips
    anything at all.
-3. **`motor_pulley_z`** — how high the 20T pulley's belt face sits above
+3. **`tube_bottom_above_pivot`** — see the section above; it is the
+   binding constraint on the yoke's whole upper half.
+4. **`motor_pulley_z`** — how high the 20T pulley's belt face sits above
    the motor faceplate. A belt drive absolutely requires coplanar pulleys.
-4. **`belt_width`**, **`nema_shaft_d`**, **`nema_body_len`**,
-   **`tube_od`**, **`tube_len_behind`**.
+5. **`tube_len_behind`** — decides the altitude ceiling outright.
+6. **`belt_width`**, **`nema_shaft_d`**, **`nema_body_len`**, **`tube_od`**.
 
 EVA-297 already lists the shaft diameter and stepper spec labels as
 open TODOs — this build needs them.
+
+## Altitude reach is set by where the pivot sits along the tube
+
+The pivot sits 77.1 mm above the tripod face. The tube's rear end swings
+`tube_len_behind × sin(altitude)` below the pivot, so with the assumed
+320 mm the rig clears the ground only up to **~14°** of altitude — nowhere
+near the hemisphere. `check.py` prints the ceiling and flags it.
+
+Reaching a given altitude needs the tube to extend no more than
+`77.1 / sin(altitude)` mm behind the pivot: ~77 mm for zenith, ~89 mm for
+60°, ~154 mm for 30°.
+
+**This is a parameter question, not a modelling defect.** `tube_len_behind`
+is ASSUMED and unmeasured; it depends on where along the tube the bracket
+pair actually sits, which nobody has checked. Three honest options, and
+which one is right depends on that measurement:
+
+- measure it first — if the brackets are near the tube's balance point the
+  problem mostly evaporates;
+- accept a lower altitude ceiling (`alt_max_deg`) — hemispherical coverage
+  degrades to a cone, which may be fine;
+- add a riser under the base, which costs rigidity on a tipping load.
+
+Not silently patched by nudging a number until the check went green.
 
 ## Verification
 
@@ -138,6 +186,8 @@ restates nothing.
   of filament to a 160T wheel — the same settle-it-by-print method the
   microscope build used on its M12 thread.
 - **The anti-rotation lip is unvalidated** against a bracket nobody has
-  measured.
+  measured. Its depth is bounded ABOVE, not below: the jaws sweep an
+  annulus as the scope tilts, so reaching too far past the bracket makes
+  them grind the tine on every altitude move.
 - **No altitude limit switch or homing datum.** Steppers are open-loop;
   something has to define where 0° is.

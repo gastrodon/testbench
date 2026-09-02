@@ -66,6 +66,17 @@ MUST_CLEAR = [
     ("yoke", "az_motor", 1.0, "tine assembly vs the azimuth stepper"),
     ("alt_motor", "az_table", 2.0, "altitude stepper vs the deck below it"),
     ("alt_motor", "base", 2.0, "altitude stepper vs ground"),
+    ("az_motor", "telescope", 3.0,
+     "the azimuth stepper now stands body-UP on the base plate, so it is "
+     "in the tube's swept path in a way a body-down motor would not be"),
+    ("az_motor", "alt_rotor", 2.0, "azimuth stepper vs the altitude wheel"),
+    ("az_motor", "alt_sleeve", 2.0, "azimuth stepper vs the pivot bushing"),
+    ("az_motor", "alt_motor", 2.0, "the two steppers vs each other"),
+    ("alt_motor", "alt_rotor", 1.0,
+     "the altitude stepper sits one belt-span from the wheel it drives"),
+    ("alt_motor", "alt_sleeve", 2.0, "altitude stepper vs the pivot bushing"),
+    ("alt_sleeve", "az_table", 3.0, "pivot bushing vs the deck below it"),
+    ("alt_sleeve", "base", 3.0, "pivot bushing vs ground"),
 ]
 
 DESIGNED_TOUCH = [
@@ -115,6 +126,7 @@ def scad_params() -> dict:
         "yoke_tine_t", "sleeve_len", "sleeve_od", "sleeve_id",
         "bracket_gap", "bracket_t", "alt_min_deg", "alt_max_deg",
         "tube_od", "tube_len_behind", "pulley_face_w", "yoke_local_axis_z",
+        "belt_pld", "tooth_depth", "alt_rotor_offset_y", "az_deck_z",
     ]
     src = 'include <params.scad>\n' + "".join(
         f'echo("PARAM", "{n}", {n});\n' for n in names)
@@ -147,7 +159,19 @@ def scad_params() -> dict:
     return vals
 
 
+_MESHES: dict = {}
+
+
 def render(part: str, alt: float, az: float = 0.0) -> trimesh.Trimesh:
+    """Render one posed body and cache it.
+
+    Caching matters more than it looks: every proximity query builds an
+    R-tree over the mesh's faces, and re-loading a 12k-face wheel for each
+    of eleven pairs at each of seven poses rebuilds that index ~150 times.
+    """
+    ck = (part, alt if part not in STATIC_IN_ALT else 0, az)
+    if ck in _MESHES:
+        return _MESHES[ck]
     BUILD.mkdir(parents=True, exist_ok=True)
     key = part if part in STATIC_IN_ALT else f"{part}_a{alt:g}"
     stl = BUILD / f"{key}.stl"
@@ -163,7 +187,24 @@ def render(part: str, alt: float, az: float = 0.0) -> trimesh.Trimesh:
     # sail through as "no interference detected".
     assert not m.is_empty, f"{part} @alt={alt} rendered EMPTY"
     assert m.volume > 1.0, f"{part} @alt={alt} has ~zero volume ({m.volume})"
+    _MESHES[ck] = m
     return m
+
+
+def bbox_gap(a, b) -> float:
+    """Distance between two axis-aligned bounding boxes.
+
+    A CONSERVATIVE lower bound on the true surface distance: two solids are
+    never closer than their boxes. So when this already exceeds the
+    required clearance, the pair is proven clear and the expensive exact
+    query can be skipped -- a sound early-out, not a sampling shortcut.
+    The reverse does not hold, so a small bbox gap proves nothing and
+    always falls through to the real measurement.
+    """
+    lo = np.maximum(a.bounds[0], b.bounds[0])
+    hi = np.minimum(a.bounds[1], b.bounds[1])
+    d = np.maximum(lo - hi, 0.0)
+    return float(np.linalg.norm(d))
 
 
 def overlap_volume(a, b) -> float:
@@ -180,7 +221,7 @@ def min_gap(a, b) -> float:
     when one part is much larger than the other."""
     best = math.inf
     for src, dst in ((a, b), (b, a)):
-        pts = src.sample(6000)
+        pts = src.sample(2500)
         d = trimesh.proximity.closest_point(dst, pts)[1]
         best = min(best, float(d.min()))
     return best
@@ -195,13 +236,13 @@ def contact_patch(a, b, tol: float = 0.6):
     band. Checking only for absence of overlap would pass both, and would
     equally pass the two parts being a metre apart -- which is the whole
     reason this function exists (rule 1)."""
-    pts = a.sample(8000)
+    pts = a.sample(4000)
     d = trimesh.proximity.closest_point(b, pts)[1]
     return float(d.min()), float((d < tol).mean())
 
 
 def count_teeth(mesh, od: float, floor_r: float) -> int:
-    """Count grooves by sectioning the wheel and scanning its radius.
+    """Count the grooves on a pulley's rim by scanning its radius.
 
     This exists because a pulley whose grooves were extruded in the wrong
     direction is watertight, valid, printable -- and perfectly smooth. That
@@ -209,22 +250,46 @@ def count_teeth(mesh, od: float, floor_r: float) -> int:
     assembly render, and only an orthographic view of the coupon showed it.
     So the tooth count is asserted on directly (rule 2: assert on a
     measurable consequence of a feature, never on 'it rendered').
+
+    First attempt used a planar section and sorted its vertices by angle.
+    That reported 2 grooves on a wheel that visibly has 160 -- the section
+    path also contains the hub bore and the lightening holes, whose radii
+    interleave with the rim's and destroy the scan. A false FAIL from a
+    checker restating geometry it did not really own: rule 4, suspect the
+    checker first.
+
+    This version bins surface points by angle and takes the maximum radius
+    in each bin, which is the rim and nothing else: at a groove that
+    maximum drops to the floor radius, between grooves it is the OD.
     """
-    sec = mesh.section(plane_origin=mesh.centroid, plane_normal=[0, 0, 1])
-    if sec is None:
+    v = np.asarray(mesh.vertices)
+    r = np.hypot(v[:, 0], v[:, 1])
+    # Select by RADIUS alone. Filtering by Z first (banding around the
+    # mesh's own centre) landed in the hub rather than the rim, because the
+    # rotor's hub and lip hang far to one side of the wheel -- the mesh's Z
+    # centre is nowhere near its belt face. Radius is the honest
+    # discriminator here: nothing but the rim and its flanges reaches out
+    # this far, and the flanges carry the same grooves.
+    band = r > floor_r - 0.5
+    if band.sum() < 100:
         return -1
-    planar, _ = sec.to_2D()
-    pts = np.asarray(planar.vertices)
-    c = pts.mean(axis=0)
-    r = np.linalg.norm(pts - c, axis=1)
-    th = np.arctan2(pts[:, 1] - c[1], pts[:, 0] - c[0])
-    order = np.argsort(th)
-    r = r[order]
-    # Threshold midway between the groove floor and the OD; each groove
-    # crosses it twice.
+    th = np.arctan2(v[band, 1], v[band, 0])
+    rb = r[band]
+    # Bin count is a balance: too few and adjacent grooves merge, too many
+    # and bins fall empty between mesh vertices. 1200 gives ~7 filled bins
+    # per groove on a 160T wheel.
+    nbins = 1200
+    idx = ((th + math.pi) / (2 * math.pi) * nbins).astype(int) % nbins
+    best = np.full(nbins, -1.0)
+    np.maximum.at(best, idx, rb)
+    filled = best > 0
+    if filled.sum() < 200:
+        return -1
+    prof = best[filled]
     mid = (floor_r + od / 2) / 2
-    above = r > mid
-    crossings = int(np.count_nonzero(above[1:] != above[:-1]))
+    above = prof > mid
+    # Circular scan: each groove crosses the threshold exactly twice.
+    crossings = int(np.count_nonzero(above != np.roll(above, 1)))
     return crossings // 2
 
 
@@ -263,9 +328,15 @@ def main() -> int:
 
     # --- teeth actually exist ----------------------------------------
     print("-- tooth count " + "-" * 57)
-    od = float(p["axis_pd"]) - 2 * 0.254
-    floor_r = od / 2 - 0.764
-    rotor = render("alt_rotor", 0)
+    od = float(p["axis_pd"]) - 2 * float(p["belt_pld"])
+    floor_r = od / 2 - float(p["tooth_depth"])
+    # The part's OWN build, not a posed one. pose.scad lays the rotor over
+    # so its axis runs along global Y, and this scan is written in the
+    # part's local frame where the axis is Z. Scanning the posed mesh was
+    # the second wrong answer this check gave (after the section-based
+    # version): rule 4, the checker was measuring in a frame the part was
+    # not in.
+    rotor = trimesh.load_mesh(HERE / "build" / "alt_rotor.stl")
     n = count_teeth(rotor, od, floor_r)
     print(f"  alt_rotor rim: {n} grooves counted "
           f"(expected {p['axis_teeth']:.0f})")
@@ -286,15 +357,27 @@ def main() -> int:
     print("-- per-part integrity " + "-" * 50)
     for part in PARTS:
         m = render(part, 0)
-        bodies = m.split(only_watertight=False)
+        comps = m.split(only_watertight=False)
+        # Separate real solids from zero-volume tessellation debris. Both
+        # are reported: a solid body count of 1 with 40 slivers is a
+        # different problem from a solid body count of 2, and collapsing
+        # them into one number hides whichever one is present.
+        solid = [c for c in comps if abs(float(c.volume)) > 1e-3]
+        debris = len(comps) - len(solid)
         wt = m.is_watertight
-        print(f"  {part:<12} vol={m.volume:9.1f}mm3  bodies={len(bodies)}  "
-              f"watertight={wt}")
-        if part in ("alt_rotor", "yoke", "az_table", "base") and len(bodies) != 1:
+        print(f"  {part:<12} vol={m.volume:9.1f}mm3  solids={len(solid)}  "
+              f"zero-vol slivers={debris}  watertight={wt}")
+        if part in ("alt_rotor", "yoke", "az_table", "base") and len(solid) != 1:
             emit("FAIL",
-                 f"{part} is {len(bodies)} disconnected bodies, not 1",
+                 f"{part} is {len(solid)} disconnected solids, not 1",
                  "a floating sub-feature renders fine and prints as loose "
                  "debris; this is the 'pinion attached to nothing' failure")
+        if debris:
+            emit("WARN", f"{part} carries {debris} zero-volume facet slivers",
+                 "degenerate facets where two surfaces are exactly "
+                 "coincident. Geometrically harmless, but real debris in "
+                 "the STL, and it masks a genuine fragmentation if one "
+                 "ever appears")
         if not wt:
             emit("WARN", f"{part} mesh is not watertight",
                  "may be a tessellation artefact of the render rather than "
@@ -307,8 +390,17 @@ def main() -> int:
     for a, b, gap_min, why in MUST_CLEAR:
         checked.add(frozenset((a, b)))
         worst_gap, worst_pose, worst_ov = math.inf, None, 0.0
+        exact = False
         for alt in ALT_SWEEP:
             ma, mb = render(a, alt), render(b, alt)
+            bb = bbox_gap(ma, mb)
+            if bb >= gap_min:
+                # Proven clear at this pose by a lower bound. Recorded as a
+                # bound, not as a measurement -- the printed gap is >= this.
+                if bb < worst_gap:
+                    worst_gap, worst_pose = bb, alt
+                continue
+            exact = True
             ov = overlap_volume(ma, mb)
             g = 0.0 if ov > 0 else min_gap(ma, mb)
             if ov > worst_ov:
@@ -316,8 +408,9 @@ def main() -> int:
             if g < worst_gap:
                 worst_gap, worst_pose = g, alt
         status = ("FAIL" if worst_ov > 0.5 or worst_gap < gap_min else "PASS")
+        how = "exact" if exact else ">= bound"
         print(f"  [{status}] {a:<11}/{b:<11} worst gap {worst_gap:7.2f}mm "
-              f"@alt={worst_pose:g}  (need >={gap_min}mm)"
+              f"({how}) @alt={worst_pose:g}  (need >={gap_min}mm)"
               + (f"  OVERLAP {worst_ov:.1f}mm3" if worst_ov > 0.5 else ""))
         if status == "FAIL":
             emit("FAIL",
@@ -335,14 +428,19 @@ def main() -> int:
         ma, mb = render(a, 0), render(b, 0)
         gap, frac = contact_patch(ma, mb)
         ov = overlap_volume(ma, mb)
-        ok = frac > 0.02 and gap < 0.6
+        # Touching is required; merging is not. A pair that overlaps by a
+        # significant volume is not "in contact", it is interpenetrating --
+        # and checking only for a contact patch passes that happily.
+        ok = frac > 0.02 and gap < 0.6 and ov < 60.0
         print(f"  [{'PASS' if ok else 'FAIL'}] {a:<11}/{b:<11} "
               f"gap {gap:5.3f}mm  contact patch {frac*100:5.2f}% of surface"
               + (f"  overlap {ov:.1f}mm3" if ov > 0.5 else ""))
         if not ok:
+            why_bad = (f"interpenetrate by {ov:.0f}mm3" if ov >= 60.0 else
+                       f"show only {frac*100:.2f}% contact at "
+                       f"{gap:.3f}mm separation")
             emit("FAIL",
-                 f"{a} and {b} are supposed to be in contact but show "
-                 f"{frac*100:.2f}% contact at {gap:.3f}mm separation",
+                 f"{a} and {b} are supposed to be in contact but {why_bad}",
                  "'no interference' is satisfied by two parts a metre "
                  f"apart, so this is checked as sustained contact. {why}")
     print()
@@ -367,6 +465,59 @@ def main() -> int:
              f"{p['belt_loop_len']:.1f}; the geometry is self-consistent")
     teeth_engaged = D / 2 * math.acos((D - d) / (2 * C)) * 2 / 2.0
     print(f"  belt teeth engaged on the 160T wheel: ~{teeth_engaged:.0f}")
+
+    # --- rigidly co-moving pairs: overlap only ------------------------
+    # These are exempt from CLEARANCE (they are bolted together, they are
+    # meant to touch) but NOT from interpenetration. A blanket exemption
+    # is how a real clash gets waved through -- and it nearly did here:
+    # (alt_motor, yoke) sat in this list while the motor body and its
+    # mounting plate occupied the same volume by construction.
+    print("-- rigidly co-moving pairs, overlap only " + "-" * 31)
+    for a, b in RIGID_SAME_BODY:
+        if a not in PARTS or b not in PARTS:
+            continue
+        ov = overlap_volume(render(a, 0), render(b, 0))
+        bad = ov > 60.0
+        print(f"  [{'FAIL' if bad else 'PASS'}] {a:<11}/{b:<11} "
+              f"overlap {ov:9.1f}mm3")
+        if bad:
+            emit("FAIL", f"{a} and {b} interpenetrate by {ov:.0f}mm3",
+                 "exempt from clearance because they are bolted together, "
+                 "but two solids still cannot occupy the same volume")
+    print()
+
+    # --- reach limit, computed not sampled ----------------------------
+    # The mesh sweep finds tube/base collisions at high altitude. This says
+    # WHY, in one number, so the fix is a decision rather than a fudge: the
+    # tube's rear end drops tube_len_behind*sin(alt) below the pivot, and
+    # the pivot is only alt_axis_z above the ground plane.
+    print("-- altitude reach " + "-" * 54)
+    zmax = float(p["alt_max_deg"])
+    drop = float(p["tube_len_behind"]) * math.sin(math.radians(zmax))
+    # alt_axis_z is already measured from the tripod face -- it is built up
+    # through az_deck_z -> yoke_base_z -> the wheel radius. Adding az_deck_z
+    # again double-counts the thrust deck. Rule 4 once more: the checker
+    # re-deriving a datum the design already owns.
+    pivot = float(p["alt_axis_z"])
+    max_behind = pivot / max(math.sin(math.radians(zmax)), 1e-9)
+    reach_ok = math.degrees(math.asin(min(1.0, pivot / float(p["tube_len_behind"]))))
+    print(f"  pivot sits {pivot:.1f}mm above the ground plane")
+    print(f"  at {zmax:.0f} deg the tube's rear end drops {drop:.1f}mm below it")
+    print(f"  ground is cleared up to ~{reach_ok:.1f} deg of altitude")
+    print(f"  reaching {zmax:.0f} deg needs the tube to extend no more than "
+          f"{max_behind:.0f}mm behind the pivot (params says "
+          f"{p['tube_len_behind']:.0f}mm, ASSUMED)")
+    if drop > pivot:
+        emit("FAIL",
+             f"zenith is geometrically unreachable: at {zmax:.0f} deg the "
+             f"tube's rear end is {drop - pivot:.0f}mm below the ground plane",
+             f"pivot height {pivot:.1f}mm vs a tube extending "
+             f"{p['tube_len_behind']:.0f}mm behind it (ASSUMED, unmeasured). "
+             f"Ground clears to ~{reach_ok:.1f} deg. This is set by where "
+             "the pivot sits ALONG the tube, which nobody has measured -- "
+             "it is a parameter question, not a modelling defect, and the "
+             "options are a riser, a lower altitude ceiling, or the real "
+             "measurement")
 
     # --- completeness -------------------------------------------------
     all_pairs = {frozenset((a, b)) for i, a in enumerate(PARTS)

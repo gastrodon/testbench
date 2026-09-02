@@ -35,17 +35,32 @@
 include <params.scad>
 use <gt2.scad>
 
+// rotor_hub_h lives in params.scad: alt_rotor_offset_y is derived from it,
+// so it is shared by this file, yoke.scad and assembly.scad (rule 3).
 rotor_hub_d     = min(bracket_free_r * 2, 34);  // must not foul the tube
-rotor_hub_h     = 6.0;
-rotor_lip_depth = 4.0;   // how far the lip reaches back over the bracket edge
+
+// How far the anti-rotation jaws reach back over the bracket's edge.
+// Bounded ABOVE, not below: the jaws sweep an annulus as the scope tilts,
+// so their tips must stop short of the tine's face or they grind it on
+// every altitude move. The gap from the bracket's outer face to the tine
+// face is bracket_t + (bracket_gap - yoke_tine_t)/2.
+//
+// The first version asserted the opposite (lip_depth > bracket_t) on the
+// theory that the lip had to reach past the bracket to key anything. It
+// does not -- partial engagement on the bracket edge keys it fine, and
+// reaching past guarantees a collision.
+rotor_lip_max   = bracket_t + (bracket_gap - yoke_tine_t) / 2;
+rotor_lip_depth = 2.5;
 rotor_face_z    = -gt2_envelope_h() / 2;  // inboard face of the wheel, local Z
 
 module alt_rotor() {
     assert(is_num(axis_teeth), "alt_rotor: params.scad not included");
-    // Rule 2: a lip that does not reach past the bracket is a silently
-    // missing feature -- it would render fine and key nothing at all.
-    assert(rotor_lip_depth > bracket_t,
-           "alt_rotor: lip_depth must exceed bracket_t or the lip keys nothing");
+    assert(rotor_lip_depth > 0.8,
+           "alt_rotor: lip too shallow to key anything against the bracket");
+    assert(rotor_lip_depth < rotor_lip_max,
+           str("alt_rotor: lip_depth ", rotor_lip_depth, " reaches past the ",
+               "bracket into the yoke tine's swept path (max ",
+               rotor_lip_max, ")"));
     assert(rotor_hub_d <= bracket_free_r * 2,
            "alt_rotor: hub fouls the telescope tube");
 

@@ -38,6 +38,10 @@ plane, so no counterbore can bring it into line. Either motor_pulley_z is \
 wrong (it is ASSUMED) or the table has to be raised.");
     assert(az_motor_face_z <= base_plate_t,
            "base: the azimuth motor seat would sit above the base plate.");
+    assert(az_motor_pocket >= 0.4,
+           "base: the azimuth motor pocket is too shallow to locate the \
+motor; either the belt plane and the pulley standoff already agree (in \
+which case drop the pocket) or motor_pulley_z is wrong.");
     assert(base_plate_r + nema_side >= az_motor_r,
            "base: az motor at the belt centre distance is off the plate. \
 Either the belt loop is longer than this base can span, or the plate must \
@@ -72,13 +76,19 @@ grow an arm. Measure belt_loop_len first.");
             cylinder(h = base_plate_t + 2, d = alt_bolt_major + 2 * clearance);
         translate([0, 0, -0.01])
             cylinder(h = tripod_nut_t, d = tripod_nut_af / cos(30), $fn = 6);
-        // Motor seat: a counterbore from BELOW up to az_motor_face_z, so
-        // the motor's faceplate lands at the height that puts its pulley
-        // in the belt plane. Flush against the plate's top face would be
-        // motor_pulley_z too high -- the belt would then run at an angle,
-        // and a belt cannot do that.
-        translate([az_motor_r, 0, -1])
-            cylinder(h = az_motor_face_z + 1, d = nema_side * 1.25);
+        // Motor seat: a shallow pocket in the plate's TOP face, dropping
+        // the faceplate to az_motor_face_z so the pulley lands in the belt
+        // plane. Sitting flush on the plate top would be az_motor_pocket
+        // too high, and a belt cannot run at an angle.
+        //
+        // The motor stands body-UP in this pocket. Body-down would hang a
+        // 40mm NEMA 17 below the plate and force the whole base up onto
+        // 40mm legs to clear the tripod head. Body-up is clear of the
+        // rotating table because the motor sits out at the belt centre
+        // distance, well outside the table's rim.
+        translate([az_motor_r, 0, az_motor_face_z])
+            cylinder(h = az_motor_pocket + 1,
+                     d = nema_side * sqrt(2) + 2 * clearance);
         // NEMA 17 for azimuth: pilot bore + four M3 slotted RADIALLY so
         // the belt tensions by sliding the motor outward.
         translate([az_motor_r, 0, -1]) {

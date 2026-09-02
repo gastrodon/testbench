@@ -47,7 +47,7 @@ show_belts     = true;
 module telescope_proxy() {
     // Tube, lying along +X at the pivot, with the bracket pair below it.
     color("silver", 0.5) {
-        translate([-tube_len_behind, 0, alt_bore_c_to_bottom + tube_od / 2])
+        translate([-tube_len_behind, 0, tube_bottom_above_pivot + tube_od / 2])
             rotate([0, 90, 0])
                 cylinder(h = tube_len_behind + 120, d = tube_od);
         for (s = [-1, 1])
@@ -87,7 +87,8 @@ module assembly() {
     // GROUND.
     color("steelblue", 0.85) base();
     if (show_telescope)
-        translate([az_motor_r, 0, az_motor_face_z]) nema17_proxy();
+        translate([az_motor_r, 0, az_motor_face_z])
+            rotate([180, 0, 0]) nema17_proxy();
     if (show_belts)
         translate([0, 0, az_belt_plane_z])
             belt_proxy(motor_pd, axis_pd, az_motor_r);
@@ -109,7 +110,10 @@ module assembly() {
                 if (show_belts)
                     translate([0, alt_belt_plane_y, 0]) rotate([-90, 0, 0])
                         belt_proxy(motor_pd, axis_pd, axis_centre_dist);
-                    translate([axis_centre_dist, alt_motor_face_y, 0])
+                    // Faceplate bolts to the plate's OUTBOARD surface,
+                    // not to its inboard one -- placing it at face_y put
+                    // 6,361 mm3 of motor body inside its own mount.
+                    translate([axis_centre_dist, alt_motor_seat_y, 0])
                         rotate([90, 0, 0]) nema17_proxy();
 
                 rotate([0, -alt_angle, 0]) {

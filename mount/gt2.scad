@@ -22,13 +22,20 @@ include <params.scad>
 // that is how groove depth is specified. The two differ by the 0.254mm
 // pitch line differential -- a third of the groove depth, not a rounding
 // error.
-module gt2_groove_2d(od, depth_scale = 1.0) {
+// `over` is how far the throat runs past the OD. It must clear the FLANGE
+// too, not just the rim: a throat ending exactly on the flange's outer
+// surface makes the two coincident, and CGAL emits zero-volume degenerate
+// facets there. That showed up as the wheel reporting 41 bodies -- one
+// real solid plus 40 slivers of exactly zero volume. Harmless to the
+// geometry, but real debris in the STL, and it masks a genuine
+// fragmentation if one ever appears.
+module gt2_groove_2d(od, depth_scale = 1.0, over = 2.0) {
     d     = tooth_depth * depth_scale;
     floor = od / 2 - d + tooth_width / 2;   // centre of the floor arc
     union() {
         translate([floor, 0]) circle(r = tooth_width / 2);
         translate([floor, -tooth_width / 2])
-            square([od / 2 - floor + 1, tooth_width]);
+            square([od / 2 - floor + over, tooth_width]);
     }
 }
 
@@ -70,7 +77,8 @@ module gt2_pulley(teeth, face = undef, flange = true, depth_scale = 1.0) {
             rotate([0, 0, i * 360 / teeth])
                 linear_extrude(height = f + 2 * pulley_flange_h + 2,
                                center = true)
-                    gt2_groove_2d(od, depth_scale);
+                    gt2_groove_2d(od, depth_scale,
+                                  over = pulley_flange_t + 1);
     }
 }
 

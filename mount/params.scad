@@ -147,6 +147,20 @@ bracket_clear_d    = 6.8;   // ASSUMED -- the near bracket's plain hole
 // collides with the yoke or the base at high altitude angles.
 tube_od            = 60.0;  // ASSUMED -- OD of the 50mm-objective tube.
                             // MEASURE.
+
+// How far the tube's nearest SURFACE stands off the pivot axis. Split out
+// from alt_bore_c_to_bottom deliberately: that one is measured against the
+// mount lug's bottom face, and the brackets hang below the tube, so the
+// two are not the same number. Bundling them assumes the tube is flush
+// with the bracket bottom, which is the worst case, not the likely one.
+//
+// This is the tightest budget in the whole design. The tube swings around
+// the pivot, so its surface sweeps a cylinder of exactly this radius about
+// the altitude axis -- and EVERY piece of the yoke inside the tube's width
+// has to fit within it, at every altitude angle. It sets the pivot boss
+// diameter and caps how tall the motor arm may be.
+tube_bottom_above_pivot = 9.25;  // ASSUMED (worst case) -- MEASURE. Almost
+                                 // certainly larger on the real scope.
 tube_len_behind    = 320.0; // ASSUMED -- how far the tube extends from the
                             // alt axis toward the eyepiece. MEASURE.
                             // Checked as a swept-clearance case, not a
@@ -183,7 +197,13 @@ az_post_d       = 16.0;  // CHOSEN -- printed journal post diameter
 az_journal_fit  = 0.35;  // CHOSEN -- radial running clearance, per side.
                          // Proven slip-fit allowance elsewhere in this
                          // repo's prints.
-az_post_h       = 22.0;  // CHOSEN -- journal engagement length
+// The post runs up THROUGH the table and on into the yoke's foot, so it
+// journals both. The yoke is bolted to the table and turns with it, so
+// they share one long bearing rather than the table having a short one and
+// the yoke none. Engagement is post_h rather than just the table's own
+// thickness -- a 16mm post journalled over only 14mm is an L/D under 1,
+// which on a telescope-on-a-stalk tipping load is not enough.
+az_post_h       = 28.0;  // CHOSEN -- journal length above the thrust deck
 az_thrust_r     = 34.0;  // CHOSEN -- radius of the flat annular thrust
                          // face the table rides on. Wide, because a
                          // telescope on a stalk is a tipping load.
@@ -265,13 +285,38 @@ function gt2_env_r_axis() = (pulley_od(axis_teeth) + 2 * pulley_flange_t) / 2;
 // Belt planes. A belt drive absolutely requires the two pulleys to be
 // coplanar; motor_pulley_z is ASSUMED, so this is the first thing to
 // re-derive once that is measured.
-// The alt rotor is clamped OUTBOARD of the near bracket, so its wheel's
-// mid-plane is offset from the tine's plane by half the bracket span. The
-// altitude motor has to be pushed out to the same Y or the belt runs at an
-// angle -- which a belt drive does not forgive. This being 0 (i.e. "the
-// belt runs in the tine's plane") was a real error caught by rendering the
-// assembly orthographically down the altitude axis.
-alt_rotor_offset_y = (bracket_gap + 2 * bracket_t) / 2;   // DERIVED
+// Where the alt rotor's WHEEL CENTRE sits along the altitude axis.
+//
+// Walk the stack outward from the tine's mid-plane rather than guessing:
+//   bracket_gap/2   to the near bracket's inner face
+//   + bracket_t     through the bracket to its OUTER face -- where the
+//                   rotor hub clamps
+//   + rotor_hub_h   through the hub
+//   + env_h/2       to the middle of the wheel itself
+//
+// A first version used just (bracket_gap + 2*bracket_t)/2 = 16, which puts
+// the wheel where the BRACKET is: measured overlap 13,936 mm3 against the
+// yoke, and the hub buried inside the tine boss. Every part still rendered
+// perfectly on its own.
+// Hub LENGTH is derived, not chosen. The wheel is 103mm across on a pivot
+// that sits only 9.25mm below the tube's bottom, so a wheel anywhere
+// inboard of the tube's own radius cuts straight through the telescope --
+// measured at 11,061 mm3 of interpenetration with a 6mm hub. The hub has
+// to stand the wheel off past the tube surface.
+//
+// Consequence worth stating rather than hiding: this is a long cantilever
+// carrying a big wheel, and it is the least rigid thing in the assembly.
+// It gets shorter if bracket_gap measures wider than assumed.
+rotor_tube_margin  = 3.0;   // CHOSEN -- air between wheel face and tube
+// Note there is NO env_h/2 term here. The hub has to stand the wheel's
+// INBOARD FACE clear of the tube, not its centre plane; subtracting half
+// the wheel's own width put the face 1.7mm back inside the tube while the
+// formula's comment claimed otherwise.
+rotor_hub_h        = max(6.0,
+                         tube_od / 2 + rotor_tube_margin
+                         - bracket_gap / 2 - bracket_t);   // DERIVED
+alt_rotor_offset_y = bracket_gap / 2 + bracket_t + rotor_hub_h
+                     + gt2_env_h_axis() / 2;              // DERIVED
 alt_belt_plane_y   = alt_rotor_offset_y;                  // DERIVED
 az_belt_plane_z  = az_deck_z + gt2_env_h_axis() / 2;   // DERIVED
 
@@ -287,15 +332,57 @@ az_motor_r  = axis_centre_dist;   // DERIVED -- az motor sits out radially
 // stands motor_pulley_z proud of that faceplate -- ends up in the belt
 // plane. This is the whole coplanarity constraint, written once.
 //
-// The altitude motor hangs OUTBOARD (+Y), on the same side as the rotor,
-// so its body is clear of the telescope's brackets.
-alt_motor_face_y = alt_belt_plane_y + motor_pulley_z;   // DERIVED
-// The azimuth motor hangs BELOW the base plate, shaft up. A faceplate flat
-// against the plate's top face would put its pulley too high, so the plate
-// is counterbored to drop it. If motor_pulley_z measures out larger than
-// az_belt_plane_z this goes negative and base.scad refuses to render --
-// which is the correct outcome, not something to paper over with a fudge.
+// The altitude motor bolts to the OUTBOARD face of the yoke's motor plate
+// and its pulley reaches back INBOARD through the plate's pilot bore. So
+// the plate's inboard face is one plate thickness further in than the
+// faceplate:
+//     pulley plane = faceplate - motor_pulley_z
+//     faceplate    = plate inboard face + plate thickness
+alt_motor_plate_t = 5.0;   // CHOSEN -- shared by yoke.scad and the datum
+// The motor's faceplate bolts to the plate's OUTBOARD face, so the plate's
+// inboard face -- which is where yoke.scad draws it from -- is one plate
+// thickness further in.
+alt_motor_face_y  = alt_belt_plane_y + motor_pulley_z
+                    - alt_motor_plate_t;                  // DERIVED
+alt_motor_seat_y  = alt_motor_face_y + alt_motor_plate_t; // DERIVED
+
+// The arm from the tine out to that plate has to cross the wheel's plane.
+// Crossing it anywhere inside the wheel's radius runs the arm straight
+// through the wheel -- measured at 1,294 mm3. So the arm dog-legs: it runs
+// outboard at the motor's Y until it is clear of the wheel, and only then
+// turns in toward the tine.
+yoke_arm_d        = 26.0;   // CHOSEN -- arm cross-section
+yoke_knee_x       = gt2_env_r_axis() + yoke_arm_d / 2 + 3;   // DERIVED
+
+// Ceiling for anything on the yoke that lies within the tube's width. The
+// tube's underside sweeps past at tube_bottom_above_pivot; everything the
+// yoke puts in that band has to duck under it.
+yoke_clear_z      = tube_bottom_above_pivot - 1.25;          // DERIVED
+// The pivot boss lives inside that same swept radius, so its diameter is
+// derived from it rather than chosen. This leaves a thin wall over the
+// sleeve bore -- flagged in README, and it grows the moment
+// tube_bottom_above_pivot is actually measured.
+yoke_boss_d       = 2 * (tube_bottom_above_pivot - 1);       // DERIVED
+
+// The pulley's own envelope reaches (motor_pulley_z - env_h/2) back from
+// the faceplate. If the plate is thicker than that, the pulley's inner
+// flange lands on the plate and the motor cannot seat. Relieved with a
+// counterbore rather than by thinning the plate.
+motor_pulley_reach = motor_pulley_z - gt2_env_h_motor() / 2;   // DERIVED
+function gt2_env_h_motor() = pulley_face_w + 2 * pulley_flange_h;
+function gt2_env_d_motor() = pulley_od(motor_teeth) + 2 * pulley_flange_t;
+// The azimuth motor stands ON TOP of the base plate, body upward, seated
+// in a shallow pocket that drops its faceplate to the height which puts
+// its pulley in the belt plane. Body-up rather than body-down: hanging a
+// 40mm NEMA 17 below the plate would need the whole base standing 40mm off
+// the tripod head on legs. It clears the rotating table because it sits
+// out at the belt centre distance, far outside the table's rim.
+//
+// If motor_pulley_z measures out larger than az_belt_plane_z this goes
+// negative and base.scad refuses to render -- the correct outcome, not
+// something to paper over.
 az_motor_face_z  = az_belt_plane_z - motor_pulley_z;    // DERIVED
+az_motor_pocket  = base_plate_t - az_motor_face_z;      // DERIVED
 
 // Yoke tine thickness: it runs between the telescope's brackets on the
 // shoulder sleeve, so it can be no thicker than the gap minus running

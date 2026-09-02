@@ -39,9 +39,11 @@ module az_table() {
             // Deck plate.
             translate([0, 0, gt2_envelope_h()])
                 cylinder(h = az_table_t, r = az_table_r);
-            // Journal boss, hanging below into the base's post bore.
-            translate([0, 0, -az_post_h])
-                cylinder(h = az_post_h + 1, d = az_post_d + 2 * wall);
+            // No boss hangs BELOW the deck. A downward boss has nowhere to
+            // go: the base's plate and post already occupy that space, and
+            // the first version drove 845 mm3 of table straight into the
+            // base. The post comes UP through this table instead -- and on
+            // into the yoke's foot, so table and yoke share one journal.
         }
         // Journal bore -- running fit on base's post.
         translate([0, 0, -az_post_h - 1])

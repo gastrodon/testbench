@@ -16,31 +16,40 @@ cd "$(dirname "$0")"
 mkdir -p build/views
 SZ=1400,1000
 
-shot() { # name, camera, extra -D args...
-    local name=$1 cam=$2; shift 2
-    openscad --projection=o --imgsize=$SZ --camera="$cam" \
+# --viewall --autocenter rather than a hand-picked distance: these parts
+# span ~250mm and a fixed camera distance silently crops the thing you
+# were trying to look at. A cropped review render is worse than none --
+# it looks like a finished picture of a smaller part.
+shot() { # name, rotation, extra -D args...
+    local name=$1 rot=$2; shift 2
+    openscad --projection=o --imgsize=$SZ --camera="0,0,0,$rot,0" \
+             --viewall --autocenter \
              "$@" -o "build/views/$name.png" assembly.scad 2>/dev/null
     echo "  build/views/$name.png"
+}
+
+part_shot() { # file, name, rotation
+    openscad --projection=o --imgsize=$SZ --camera="0,0,0,$3,0" \
+             --viewall --autocenter \
+             -o "build/views/part-$2.png" "$1.scad" 2>/dev/null
+    echo "  build/views/part-$2.png"
 }
 
 echo "orthographic views:"
 # Down the ALTITUDE axis (+Y). This is the view that shows whether the
 # 160T wheel clears the deck and whether the tube fouls the motor.
 for a in 0 45 90; do
-    shot "alt-axis-a$a" "0,0,60,90,0,0,320" -D "alt_angle=$a"
+    shot "alt-axis-a$a" "90,0,0" -D "alt_angle=$a"
 done
 # Down the AZIMUTH axis (+Z), from above -- shows the belt triangle and
 # whether the motors are on the plate.
-shot "az-axis-top" "0,0,60,0,0,0,340" -D "alt_angle=0"
+shot "az-axis-top" "0,0,0" -D "alt_angle=0"
 # Front elevation, the stack of datums: plate / thrust / deck / tine.
-shot "front" "0,0,60,90,0,90,320" -D "alt_angle=45"
+shot "front" "90,0,90" -D "alt_angle=45"
 # Single parts, isolated, down their own axis.
-openscad --projection=o --imgsize=$SZ --camera=0,0,0,90,0,0,160 \
-         -o build/views/part-alt_rotor.png alt_rotor.scad 2>/dev/null
-echo "  build/views/part-alt_rotor.png"
-openscad --projection=o --imgsize=$SZ --camera=0,0,0,90,0,0,200 \
-         -o build/views/part-yoke.png yoke.scad 2>/dev/null
-echo "  build/views/part-yoke.png"
-openscad --projection=o --imgsize=$SZ --camera=0,0,0,0,0,0,200 \
-         -o build/views/part-base.png base.scad 2>/dev/null
-echo "  build/views/part-base.png"
+part_shot alt_rotor alt_rotor "0,0,0"        # down the wheel axis
+part_shot alt_rotor alt_rotor-side "90,0,0"  # across it: hub and lip stack
+part_shot yoke      yoke       "90,0,0"
+part_shot base      base       "0,0,0"
+part_shot az_table  az_table   "90,0,0"
+part_shot gt2_coupon coupon    "0,0,0"
