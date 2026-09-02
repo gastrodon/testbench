@@ -77,9 +77,20 @@
 // perimeter and then gap-fills the remainder, which blobs. Avoid it in
 // either direction.
 //
-// One glyph was lost on that print. Cause unknown — it may be the
-// sub-bead width, or a momentary flow dropout. Worth watching whether it
-// recurs before treating it as a property of the size.
+// One glyph was lost on that print — the 3 in the size-6 row. NOT a
+// software fault: the STL carries 10 digit islands at 5.2mm spacing and
+// the sliced gcode carries 10 glyph clusters at the same spacing, so the
+// character was modelled, sliced and commanded. It just did not end up on
+// the sheet.
+//
+// Most likely a momentary flow dropout — the hotend had jammed an hour
+// earlier and the same print shows stringing between glyphs, which is
+// ooze during travel. A lone 0.42mm bead also has very little holding it
+// down, so a glyph that fails to stick can be lifted by a later pass.
+//
+// Note it happened in the size-6 row, at a FULL extrusion pass, while the
+// 0.8-pass size-5 row printed complete. So it is not evidence that thin
+// strokes drop out.
 LABEL_FONT = "DejaVu Sans Light:style=ExtraLight";
 
 // One layer, and the layer is the whole part. Height must match the
