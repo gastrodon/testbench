@@ -37,7 +37,9 @@ use <gt2.scad>
 
 // rotor_hub_h lives in params.scad: alt_rotor_offset_y is derived from it,
 // so it is shared by this file, yoke.scad and assembly.scad (rule 3).
-rotor_hub_d     = min(bracket_free_r * 2, 34);  // must not foul the tube
+// rotor_hub_d is DERIVED in params.scad from the tube's swept clearance,
+// not chosen here -- see the note there. Choosing it is what put 74.5 mm3
+// of hub inside the telescope.
 
 // How far the anti-rotation jaws reach back over the bracket's edge.
 // Bounded ABOVE, not below: the jaws sweep an annulus as the scope tilts,
@@ -62,7 +64,11 @@ module alt_rotor() {
                "bracket into the yoke tine's swept path (max ",
                rotor_lip_max, ")"));
     assert(rotor_hub_d <= bracket_free_r * 2,
-           "alt_rotor: hub fouls the telescope tube");
+           "alt_rotor: hub fouls telescope structure on the bracket face");
+    assert(rotor_hub_d > alt_bolt_major * 1.9 + 2 * wall,
+           "alt_rotor: the tube's swept clearance has squeezed the hub down \
+past its own bolt-head counterbore. tube_bottom_above_pivot is the binding \
+constraint -- measure it.");
 
     difference() {
         union() {
@@ -73,11 +79,17 @@ module alt_rotor() {
             //
             // Offset by `clearance` so the jaws' inner faces sit just
             // outside the bracket rather than exactly ON it. Flush was the
-            // first version: the two faces were mathematically coincident,
-            // which measured as 75 mm3 of interpenetration and would have
-            // been a jaw that cannot be pushed over the bracket at all.
-            // The 0.25mm of slop is also the keying backlash -- small
-            // against 0.225 deg per full step.
+            // first version -- the two faces were mathematically
+            // coincident, which is a jaw that cannot be pushed over the
+            // bracket at all. The 0.25mm of slop is also the keying
+            // backlash, small against 0.225 deg per full step.
+            //
+            // (This was NOT the cause of the 74.5 mm3 the checker found on
+            // the rotor/telescope pair -- that was the hub, and the number
+            // did not move when this was fixed. Worth recording: the
+            // plausible explanation and the true one were different
+            // features, and only measuring the overlap's bounding box told
+            // them apart.)
             for (s = [-1, 1])
                 translate([s * (bracket_w / 2 + clearance + wall / 2),
                            0,

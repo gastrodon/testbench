@@ -308,6 +308,24 @@ function gt2_env_r_axis() = (pulley_od(axis_teeth) + 2 * pulley_flange_t) / 2;
 // carrying a big wheel, and it is the least rigid thing in the assembly.
 // It gets shorter if bracket_gap measures wider than assumed.
 rotor_tube_margin  = 3.0;   // CHOSEN -- air between wheel face and tube
+
+// The hub is subject to the SAME swept-clearance budget as the yoke's
+// pivot boss, just measured further out along the axis. At a distance y
+// from the tube's mid-plane the tube's underside sits
+//     (tube_bottom_above_pivot + R) - sqrt(R^2 - y^2)
+// above the pivot axis, and the hub is a cylinder about that axis, so it
+// may be no fatter than that. The binding y is the bracket's outer face,
+// where the hub starts -- it gets more room further out, but a straight
+// hub only gets one diameter.
+//
+// A chosen 34mm hub put 74.5 mm3 of itself inside the tube. The measured
+// overlap sat exactly between this radius and 17, which is how the
+// formula below got confirmed rather than just asserted.
+rotor_hub_y0       = bracket_gap / 2 + bracket_t;             // DERIVED
+rotor_hub_clear_r  = tube_bottom_above_pivot + tube_od / 2
+                     - sqrt(max(0, pow(tube_od / 2, 2)
+                                   - pow(rotor_hub_y0, 2)));  // DERIVED
+rotor_hub_d        = 2 * (min(bracket_free_r, rotor_hub_clear_r) - 1);
 // Note there is NO env_h/2 term here. The hub has to stand the wheel's
 // INBOARD FACE clear of the tube, not its centre plane; subtracting half
 // the wheel's own width put the face 1.7mm back inside the tube while the
