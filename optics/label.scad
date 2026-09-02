@@ -59,13 +59,27 @@
 //   Book        size 3.1   0.425mm   1.0 pass    <- right stroke, tiny text
 //   ExtraLight  size 6     0.423mm   1.0 pass    <- right stroke, readable
 //
-// ExtraLight at 6 wins outright: the same single bead as Book at 3.1, at
-// nearly twice the cap height. A heavier face can only hit one pass by
-// shrinking the letters.
+// SETTLED BY PRINT, and it overturned the prediction. A strip carrying
+// all six candidates went down at z_offset 0.05, bed 40, 4mm/s. The two
+// that read best were the SMALL ones — ExtraLight at 5 and Book at 3.1 —
+// not ExtraLight at 6, which the stem arithmetic had picked as the
+// obvious winner.
 //
-// 1.6 passes is the worst number to land on — the slicer lays one
-// perimeter and then tries to gap-fill the remainder, which blobs.
-// Prefer exactly 1.0, or failing that a clean 2.0.
+// The instructive part: ExtraLight 5 is 0.8 extrusion passes, thinner
+// than a single bead, and it was expected to drop strokes. It did not.
+// Sub-one-bead text prints legibly on this machine, so "at least one
+// full pass" is not the constraint it was assumed to be. Restraint in
+// SIZE turned out to matter more than hitting a whole number of passes —
+// bigger text at the same weight just gets heavier strokes, and heavier
+// strokes are what closes the counters of 8, 6 and 0.
+//
+// 1.6 passes remains the worst place to land: the slicer lays one
+// perimeter and then gap-fills the remainder, which blobs. Avoid it in
+// either direction.
+//
+// One glyph was lost on that print. Cause unknown — it may be the
+// sub-bead width, or a momentary flow dropout. Worth watching whether it
+// recurs before treating it as a property of the size.
 LABEL_FONT = "DejaVu Sans Light:style=ExtraLight";
 
 // One layer, and the layer is the whole part. Height must match the
@@ -75,9 +89,9 @@ LABEL_FONT = "DejaVu Sans Light:style=ExtraLight";
 LABEL_LAYER_H = 0.2;
 
 // Size and font weight are coupled through stroke width — see LABEL_FONT.
-// Changing `size` away from 6 changes the number of extrusion passes per
-// stroke, so re-measure if you do.
-module flat_label(txt, size = 6, h = LABEL_LAYER_H) {   // 6 => 0.42mm stroke
+// 5 is what actually printed best; going larger makes strokes heavier,
+// not clearer.
+module flat_label(txt, size = 5, h = LABEL_LAYER_H) {   // 5 => 0.35mm stroke
     linear_extrude(height = h)
         text(txt, size = size, font = LABEL_FONT,
              halign = "center", valign = "center");
@@ -86,4 +100,4 @@ module flat_label(txt, size = 6, h = LABEL_LAYER_H) {   // 6 => 0.42mm stroke
 // Width a label will occupy, so a plate layout can keep it clear of the
 // brim around its neighbour rather than discovering the overlap in the
 // slicer.
-function label_width(txt, size = 6) = len(txt) * size * 0.62;   // ExtraLight is narrower than Bold
+function label_width(txt, size = 5) = len(txt) * size * 0.62;   // ExtraLight is narrower than Bold

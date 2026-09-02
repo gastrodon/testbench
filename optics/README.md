@@ -98,14 +98,17 @@ Settled by test print, recorded in `params.scad`:
   undersize compensation. 11.88 threads into the camera's own holder
   cleanly; 11.68 (0.2 under, the usual bulge-compensation guess) is loose
   enough to slip.
-- Labels printed flat on the build sheet beside a part are readable
-  enough to tell two near-identical coupons apart — the approach works.
-  The *legibility* is not settled: the first attempt used a Bold face at
-  ~3 extrusion passes per stroke with a 3mm brim around every glyph, and
-  only the distinctive digits survived. `label.scad` now specifies
-  ExtraLight at size 6 (a measured 0.42mm stem, one pass) and brim 0, but
-  **that combination has never been printed** — `label_test.scad` exists
-  to settle it and is still open.
+- Labels printed flat on the build sheet beside a part, one layer, no
+  brim: **DejaVu Sans ExtraLight at size 5**, printed with `z_offset`
+  0.05 (pressing into the sheet), bed 40C and a 4mm/s first layer.
+  Settled by a strip carrying six font/size candidates side by side.
+  Two results worth keeping: a bed at 60C holds PLA at its glass
+  transition, which is fine for a solid part but leaves a single-bead
+  stroke soft enough to curl off the sheet — 40C fixed the peeling. And
+  the *small* candidates read best; size 5 is 0.8 extrusion passes,
+  thinner than one bead, and was predicted to drop strokes. It did not.
+  Heavier strokes are what fill the counters of 8, 6 and 0, so restraint
+  in size beat hitting a whole number of passes.
 
 Still open — nothing has printed far enough to answer these:
 
