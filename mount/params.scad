@@ -162,7 +162,18 @@ tube_od            = 60.0;  // ASSUMED -- OD of the 50mm-objective tube.
 tube_bottom_above_pivot = 9.25;  // ASSUMED (worst case) -- MEASURE. Almost
                                  // certainly larger on the real scope.
 tube_len_behind    = 320.0; // ASSUMED -- how far the tube extends from the
-                            // alt axis toward the eyepiece. MEASURE.
+                            // alt axis toward the eyepiece.
+                            //
+                            // Order of magnitude confirmed by eye against
+                            // the real scope (eva, 2026-09-02). That is
+                            // NOT a measurement and this stays ASSUMED --
+                            // but it does mean the ~52 deg altitude
+                            // ceiling this drives is a REAL limit rather
+                            // than an artefact of a bad guess, which is
+                            // the question the confirmation settles.
+                            // Still worth a caliper before the ceiling is
+                            // engineered around.
+                            //
                             // Checked as a swept-clearance case, not a
                             // static one -- see check.py.
 
