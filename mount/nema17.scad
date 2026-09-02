@@ -39,8 +39,30 @@ nema17_body_len   = 33.0;   // MEASURED -- a SHORT NEMA 17. The 40mm that
                             // behind every faceplate in the design.
 nema17_bolt_pitch = 31.0;   // STANDARD, confirmed above
 nema17_pilot_d    = 22.0;   // STANDARD raised boss
-nema17_shaft_d    = 5.0;    // ASSUMED -- EVA-297 flags this as explicitly
-                            // unrecorded. 5mm is the NEMA 17 standard.
+// WHAT NEMA ACTUALLY STANDARDIZES, since it matters for how much these
+// numbers can be trusted:
+//
+//   STANDARD  the mounting face -- 42.3mm frame, 31mm bolt square, 22mm
+//             pilot boss. That is the whole of it.
+//   NOT       shaft diameter and the D-cut. NEMA says nothing about
+//             either; they are manufacturer options.
+//
+// 5mm round is near-universal on NEMA 17 in printer and hobby use, and
+// the common D-cut convention leaves 4.5mm across the flat. Both are
+// CONVENTION, not spec -- which is a weaker claim than the bolt square
+// and is tagged accordingly. EVA-297 already lists the shaft diameter as
+// explicitly unrecorded.
+nema17_shaft_d    = 5.0;    // CONVENTION -- near-universal, not NEMA spec.
+                            // MEASURE.
+nema17_shaft_flat = 4.5;    // CONVENTION -- across the flat of the D. A
+                            // 0.5mm cut on a 5mm shaft. MEASURE: this is
+                            // what actually transmits torque to a pulley,
+                            // and it is the least standardized dimension
+                            // on the whole motor.
+nema17_flat_len   = 10.0;   // ASSUMED -- flat length varies freely between
+                            // manufacturers. MEASURE.
+nema17_grub_d     = 3.0;    // CONVENTION -- M3 set screws, usually two at
+                            // 90deg with one bearing on the flat
 nema17_shaft_len  = 15.0;   // MEASURED (EVA-297) -- the three belt-axis
                             // motors. NOT the extruder motor, which has a
                             // ~4mm stub and is not a drop-in for anything.
@@ -59,21 +81,59 @@ module nema17_body(side = nema17_side, len = nema17_body_len) {
     translate([-side / 2, -side / 2, -len]) cube([side, side, len]);
 }
 
-// Shaft plus the pulley already on it, growing +Z out of the faceplate.
+// The D-shaft itself, growing +Z from the faceplate. The flat runs back
+// from the shaft's free END, which is where a pulley's grub screw lands.
 module nema17_shaft(shaft_d = nema17_shaft_d, shaft_len = nema17_shaft_len,
-                    pulley_h = nema17_pulley_h,
-                    pulley_od = nema17_pulley_od, boss_h = nema17_boss_h,
-                    pulley_z = undef) {
-    pz = is_undef(pulley_z) ? shaft_len - pulley_h : pulley_z;
-    cylinder(h = shaft_len, d = shaft_d);
-    translate([0, 0, pz]) cylinder(h = pulley_h, d = pulley_od);
+                    flat = nema17_shaft_flat, flat_len = nema17_flat_len) {
+    difference() {
+        cylinder(h = shaft_len, d = shaft_d);
+        // Cut the flat: everything beyond `flat` measured across the
+        // shaft, over the last flat_len of its length.
+        translate([flat - shaft_d / 2, -shaft_d, shaft_len - flat_len])
+            cube([shaft_d, 2 * shaft_d, flat_len + 1]);
+    }
 }
 
-// Everything, for a clearance proxy.
-module nema17(with_pulley = true) {
+// The MATCHING BORE, as a negative. This is the half that a printed
+// pulley, coupler or hub needs -- the interface, not the motor. Kept here
+// beside the shaft it mates with so the two cannot drift apart (rule 3):
+// a bore in one file and a flat in another is a duplication defect the
+// moment it is written.
+module nema17_shaft_bore(shaft_d = nema17_shaft_d, depth = 20,
+                         flat = nema17_shaft_flat, clearance = 0.15) {
+    intersection() {
+        cylinder(h = depth, d = shaft_d + 2 * clearance);
+        translate([-shaft_d, -shaft_d, 0])
+            cube([shaft_d + flat + clearance, 2 * shaft_d, depth]);
+    }
+}
+
+// Radial grub-screw hole for clamping onto that flat.
+module nema17_grub_cut(at_z, d = nema17_grub_d, reach = 20) {
+    translate([0, 0, at_z]) rotate([0, 90, 0])
+        cylinder(h = reach, d = d, center = true);
+}
+
+// Motor body + boss + shaft, for clearance checking.
+//
+// The pulley is NOT part of this. It is a separate component that happens
+// to be clamped to the shaft -- which is how it is actually attached, and
+// modelling it as part of the motor hides the one interface we might have
+// to reproduce (see gt2.scad's gt2_pulley_on_shaft).
+module nema17(with_shaft = true) {
     nema17_body();
     cylinder(h = nema17_boss_h, d = nema17_pilot_d);
-    if (with_pulley) nema17_shaft();
+    if (with_shaft) nema17_shaft();
+}
+
+// Envelope of the 20T pulley already pressed on, for CLEARANCE only --
+// a plain cylinder at OD, because clearance cares about the envelope and
+// not the tooth form. The real part is metal and we are not making it.
+module nema17_pulley_envelope(pulley_h = nema17_pulley_h,
+                              pulley_od = nema17_pulley_od,
+                              shaft_len = nema17_shaft_len) {
+    translate([0, 0, shaft_len - pulley_h])
+        cylinder(h = pulley_h, d = pulley_od);
 }
 
 // The mounting cutout: pilot bore plus four M3, optionally SLOTTED along

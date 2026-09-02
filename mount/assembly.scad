@@ -64,10 +64,12 @@ module telescope_proxy() {
 }
 
 module nema17_proxy() {
-    color("dimgray", 0.6)
-        translate([0, 0, -nema_body_len])
-            translate([-nema_side / 2, -nema_side / 2, 0])
-            cube([nema_side, nema_side, nema_body_len]);
+    // Delegates to nema17.scad rather than redrawing a box. The motor is a
+    // shared component now, and its pulley is a SEPARATE call because that
+    // is how it is physically attached -- clamped to a D-shaft, not part
+    // of the casting.
+    color("dimgray", 0.6) nema17();
+    color("goldenrod", 0.7) nema17_pulley_envelope();
 }
 
 // A belt drawn as its pitch-line loop. Not a printed part -- it is here so

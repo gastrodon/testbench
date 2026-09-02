@@ -88,3 +88,45 @@ function gt2_envelope_d(teeth, flange = true) =
     pulley_od(teeth) + (flange ? 2 * pulley_flange_t : 0);
 function gt2_envelope_h(face = undef, flange = true) =
     (is_undef(face) ? pulley_face_w : face) + (flange ? 2 * pulley_flange_h : 0);
+
+// A PRINTABLE pulley bored to fit a NEMA 17 D-shaft, with grub screws.
+//
+// Not needed for this build -- the 20T pulleys on the salvaged motors are
+// existing metal parts and stay put. It exists because eva's point is
+// right: the pulley is a SEPARATE COMPONENT clamped to the shaft, not
+// part of the motor, and that interface is the one thing we would have to
+// reproduce to make our own. Modelling the pulley as part of the motor
+// hides the only interface that matters.
+//
+// The bore and flat come from nema17.scad, beside the shaft they mate
+// with, so the two cannot drift (rule 3). Nothing about the D is
+// restated here.
+//
+// The grub screw bears on the FLAT, not on the round. A screw tightened
+// against a round shaft holds by friction and eventually slips -- the
+// same mistake the rotor's original anti-rotation jaws made, one axis
+// over, and the reason that design was replaced.
+module gt2_pulley_on_shaft(teeth, face = undef, flange = true,
+                           hub_h = 6, hub_d = undef,
+                           grubs = 2, depth_scale = 1.0) {
+    f  = is_undef(face) ? pulley_face_w : face;
+    hd = is_undef(hub_d) ? pulley_od(teeth) * 0.75 : hub_d;
+    envelope_h = gt2_envelope_h(f, flange);
+
+    assert(hd > nema17_shaft_d + 2 * 2.0,
+           "gt2_pulley_on_shaft: under 2mm of wall around the shaft bore");
+
+    difference() {
+        union() {
+            gt2_pulley(teeth, face = f, flange = flange,
+                       depth_scale = depth_scale);
+            translate([0, 0, -envelope_h / 2 - hub_h])
+                cylinder(h = hub_h, d = hd);
+        }
+        translate([0, 0, -envelope_h / 2 - hub_h - 1])
+            nema17_shaft_bore(depth = envelope_h + hub_h + 2);
+        for (i = [0 : grubs - 1])
+            rotate([0, 0, i * 90])
+                nema17_grub_cut(-envelope_h / 2 - hub_h / 2);
+    }
+}

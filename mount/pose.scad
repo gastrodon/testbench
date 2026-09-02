@@ -45,12 +45,12 @@ module nema17_proxy() {
     // Centred on the SHAFT axis, which is where the pulley is. Drawing it
     // from a corner instead puts the whole 42mm body 21mm off in two
     // directions, and every clearance measured against it is then wrong.
-    // Body grows along -Z from the faceplate at the origin, centred on the
-    // SHAFT axis, which is where the pulley is. Drawing it from a corner
-    // puts the whole 42mm body 21mm off in two directions and every
-    // clearance measured against it is then wrong.
-    translate([-nema_side / 2, -nema_side / 2, -nema_body_len])
-        cube([nema_side, nema_side, nema_body_len]);
+    // Delegates to nema17.scad rather than redrawing a box. The motor is
+    // a shared component now, and its pulley is a SEPARATE call because
+    // that is how it is physically attached -- clamped to the shaft, not
+    // part of the casting.
+    nema17();
+    nema17_pulley_envelope();
 }
 
 // Same chain as assembly.scad, with ground named and every pose derived
