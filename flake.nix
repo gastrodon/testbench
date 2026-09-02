@@ -15,9 +15,15 @@
       url = "github:paulirotta/PELA-blocks/0e7dcc9df37e21bbf4e59dcd356259579bb91ba8";
       flake = false;
     };
+    # Same rev the eva-319 telescope-camera worktree pins, so the two
+    # branches do not land two different BOSL2s to reconcile at merge.
+    bosl2 = {
+      url = "github:BelfrySCAD/BOSL2/fcfce7c763863d8e66d5f36a551d11129ec1a607";
+      flake = false;
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils, technic-scad, pela-blocks }:
+  outputs = { self, nixpkgs, flake-utils, technic-scad, pela-blocks, bosl2 }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
@@ -30,6 +36,27 @@
           cp -r ${technic-scad} $out/Technic.scad
           cp -r ${pela-blocks} $out/PELA-blocks
         '';
+
+        # mount/*.scad needs BOSL2 only (nema_steppers for the NEMA 17
+        # footprint, screws/threading for the 1/4"-20 and M3 features) --
+        # no Technic/PELA, there is no LEGO interface on this mechanism.
+        mountLib = pkgs.runCommand "testbench-mount-lib" { } ''
+          mkdir -p $out
+          cp -r ${bosl2} $out/BOSL2
+        '';
+
+        # Mesh analysis for mount/check.py: trimesh with the manifold3d
+        # boolean backend, so interference and clearance are MEASURED off
+        # the actual STL rather than reasoned about from the source.
+        mountPython = pkgs.python3.withPackages (ps: [
+          ps.trimesh
+          ps.manifold3d
+          ps.numpy
+          ps.scipy   # trimesh's connected-components graph engine
+          ps.rtree   # trimesh's proximity queries need an R-tree index;
+                     # without it closest_point() raises at call time, not
+                     # import time, so the checker dies mid-run
+        ]);
 
         # A GOROOT gopls can use to resolve `machine` and its transitive
         # imports (device/avr, runtime/volatile, ...) when editing
@@ -140,11 +167,16 @@
             pkgs.openscad
             pkgs.esptool
             pkgs.usbutils
+            mountPython
           ];
           shellHook = ''
             if [ ! -e optics/lib ]; then
               ln -sfn ${opticsLib} optics/lib
               echo "optics/lib -> Nix store (pinned via flake inputs, see flake.nix)"
+            fi
+            if [ -d mount ] && [ ! -e mount/lib ]; then
+              ln -sfn ${mountLib} mount/lib
+              echo "mount/lib -> Nix store (BOSL2, pinned via flake inputs)"
             fi
             ln -sfn ${firmwareGoroot} firmware/.gopls-goroot
           '';
