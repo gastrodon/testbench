@@ -153,14 +153,19 @@
             '';
 
           # nix build .#tele-stl && ls result/ — the EVA-319 nosepiece,
-          # already in its print orientation (nose down — see nosepiece.scad).
+          # emitted via nosepiece_printable() (boss down — see nosepiece.scad
+          # for why that orientation and not the as-modelled one).
           tele-stl = pkgs.runCommand "testbench-tele-stl"
             { nativeBuildInputs = [ pkgs.openscad ]; }
             ''
               mkdir -p build $out
               cp ${./tele}/*.scad build/
               ln -s ${teleLib} build/lib
-              openscad -o $out/nosepiece.stl build/nosepiece.scad
+              cat > build/_nosepiece.scad <<EOF
+              use <nosepiece.scad>
+              nosepiece_printable();
+              EOF
+              openscad -o $out/nosepiece.stl build/_nosepiece.scad
             '';
 
           # Exposed directly for inspection/testing: `nix build .#firmware-goroot`

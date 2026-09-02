@@ -38,20 +38,22 @@ taper_z0   = flange_z0 + flange_t;
 boss_z0    = taper_z0 + taper_h;
 total_h    = boss_z0 + boss_thread_len;
 
-// A small chamfer between nose and flange rather than a bare step: the
-// flange is ~3mm wider in radius than the nose, and an unrelieved 90 deg
-// step is the same "square lip catches the lead-in" problem the
-// microscope's carrier tube chamfer exists to avoid, just going the other
-// direction (this is the LEADING end into the focuser, so a snag here is
-// felt every time the nosepiece goes in or out).
+// Entry chamfer on the nose's FREE end (z=0) — the edge that actually
+// leads into the focuser every time this goes in or out. An earlier
+// version of this file chamfered the wrong edge (nose-top, where it
+// meets the flange, which never enters anything) — caught only by
+// tracing which edge is physically the leading one, not by any render.
 nose_chamfer = 1.0;
 
 module nose_and_flange() {
     union() {
-        // Nose: plain cylinder, chamfered top edge where it steps up to
-        // the flange.
+        // Nose: plain cylinder. The step up to the flange (24.15 -> 30.65
+        // dia) needs no relief of its own: printed boss-down (see the
+        // print-orientation note at the bottom of this file), that step
+        // is a downward-shrinking transition in print space, not an
+        // overhang, so nothing sags there.
         cyl(d = nose_od_male, h = nose_len, anchor = BOTTOM,
-            chamfer2 = nose_chamfer);
+            chamfer1 = nose_chamfer);
         // Flange: sits directly on top of the nose.
         translate([0, 0, flange_z0])
             cyl(d = flange_od, h = flange_t, anchor = BOTTOM);
@@ -63,6 +65,10 @@ module boss_and_taper() {
     // thread generated ON the cone (union), then the light bore cut out
     // LAST, because cutting the bore before threading would refill it —
     // exactly the failure ../optics/pcb_carrier.scad documents finding.
+    //
+    // The cone runs flange_od -> lens_thread_d, i.e. it tops out at
+    // EXACTLY the flange's own diameter — no separate step between cone
+    // and flange for either printing or load path.
     union() {
         translate([0, 0, taper_z0])
             cylinder(d1 = flange_od, d2 = lens_thread_d, h = taper_h);
@@ -83,11 +89,40 @@ module nosepiece() {
             nose_and_flange();
             boss_and_taper();
         }
+        // Sacrificial lead-in relief at the boss's free tip (z = total_h):
+        // this part prints BOSS-DOWN (see the bottom of this file), so
+        // the boss tip is the first layer on the bed, and it is exactly
+        // the threads that must start the camera's holder cleanly. Same
+        // cut as ../optics/pcb_carrier.scad's mounting_boss() — an
+        // oversize cylinder minus a cone, so only material OUTSIDE the
+        // cone is removed rather than lopping the whole tip off.
+        translate([0, 0, total_h - boss_lead_len - 0.01])
+            difference() {
+                cylinder(d = lens_thread_d + 4, h = boss_lead_len + 0.02);
+                cylinder(d1 = lens_thread_d + 0.02,
+                         d2 = lens_thread_d - 2 * boss_lead_taper,
+                         h = boss_lead_len + 0.02);
+            }
         // Light path, taken last for the same reason as the boss thread
         // above — never cut before what surrounds it exists.
         translate([0, 0, -1])
             cylinder(d = boss_bore_d, h = total_h + 2);
     }
+}
+
+// Print orientation: BOSS DOWN, flipped from how it is modelled above.
+// The alternative (nose-down, i.e. as-modelled with no flip) puts the
+// nose/flange step's underside — a ~4mm-wide flat annulus, and the exact
+// face that seats against the focuser's drawtube end — hanging in the
+// air as an unsupported 90 deg overhang; sag there is sensor tilt at the
+// seating datum, not just cosmetic. Boss-down instead makes the taper
+// cone the self-supporting widening surface (identical situation to the
+// microscope carrier's own boss-down print, same taper_angle floor), and
+// costs nothing in back-focus since it is a rotation, not new material.
+module nosepiece_printable() {
+    translate([0, 0, total_h])
+        rotate([180, 0, 0])
+            nosepiece();
 }
 
 // boss_bore_d has to actually fit inside the thread root, or the boss is
@@ -103,11 +138,6 @@ assert(boss_bore_d < lens_thread_d - 1,
 assert(nose_od_male < focuser_bore,
        "nose_od_male does not clear the focuser bore");
 
-// Print orientation: EXACTLY as modelled, nose down. Unlike the
-// microscope carrier (which prints boss-down and needs a sacrificial
-// lead-in cone on the thread tip), this part's widest feature is the
-// flange, one step up from the bed, and the boss sits at the very top,
-// threads growing into free air — the same situation the microscope's
-// own diameter-calibration coupon printed in, which is why that thread
-// came out clean with no lead-in relief. No flip, no lead-in needed.
+// Rendered as-modelled by default; nosepiece_printable() is what the
+// flake's tele-stl build target actually slices.
 nosepiece();
