@@ -15,9 +15,17 @@
       url = "github:paulirotta/PELA-blocks/0e7dcc9df37e21bbf4e59dcd356259579bb91ba8";
       flake = false;
     };
+    # Same pin as eva-316's (uncommitted, as of this writing) microscope
+    # build — threading.scad for the M12x0.5 boss both builds share. Kept
+    # identical on purpose so merging with that branch later is a
+    # near-no-op instead of two BOSL2 pins to reconcile.
+    bosl2 = {
+      url = "github:BelfrySCAD/BOSL2/fcfce7c763863d8e66d5f36a551d11129ec1a607";
+      flake = false;
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils, technic-scad, pela-blocks }:
+  outputs = { self, nixpkgs, flake-utils, technic-scad, pela-blocks, bosl2 }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
@@ -30,6 +38,24 @@
           cp -r ${technic-scad} $out/Technic.scad
           cp -r ${pela-blocks} $out/PELA-blocks
         '';
+
+        # tele/*.scad only needs BOSL2 (threading), not Technic/PELA — no
+        # LEGO interface on this part.
+        teleLib = pkgs.runCommand "testbench-tele-lib" { } ''
+          mkdir -p $out
+          cp -r ${bosl2} $out/BOSL2
+        '';
+
+        # Mesh analysis (trimesh + manifold3d boolean backend) so tele's
+        # verification can measure the STL — body count, watertightness,
+        # bounding box — instead of only rendering a picture and squinting.
+        # Mirrors eva-316's own addition (uncommitted as of this writing).
+        opticsPython = pkgs.python3.withPackages (ps: [
+          ps.trimesh
+          ps.manifold3d
+          ps.numpy
+          ps.scipy   # trimesh's connected-components graph engine
+        ]);
 
         # A GOROOT gopls can use to resolve `machine` and its transitive
         # imports (device/avr, runtime/volatile, ...) when editing
@@ -126,6 +152,17 @@
               openscad -o $out/calibration.stl -D '_large_nozzle=false' build/calibration.scad
             '';
 
+          # nix build .#tele-stl && ls result/ — the EVA-319 nosepiece,
+          # already in its print orientation (nose down — see nosepiece.scad).
+          tele-stl = pkgs.runCommand "testbench-tele-stl"
+            { nativeBuildInputs = [ pkgs.openscad ]; }
+            ''
+              mkdir -p build $out
+              cp ${./tele}/*.scad build/
+              ln -s ${teleLib} build/lib
+              openscad -o $out/nosepiece.stl build/nosepiece.scad
+            '';
+
           # Exposed directly for inspection/testing: `nix build .#firmware-goroot`
           # then `GOROOT=./result GOFLAGS=-tags=arduino_uno gopls check firmware/main.go`.
           firmware-goroot = firmwareGoroot;
@@ -140,11 +177,16 @@
             pkgs.openscad
             pkgs.esptool
             pkgs.usbutils
+            opticsPython
           ];
           shellHook = ''
             if [ ! -e optics/lib ]; then
               ln -sfn ${opticsLib} optics/lib
               echo "optics/lib -> Nix store (pinned via flake inputs, see flake.nix)"
+            fi
+            if [ ! -e tele/lib ]; then
+              ln -sfn ${teleLib} tele/lib
+              echo "tele/lib -> Nix store (pinned via flake inputs, see flake.nix)"
             fi
             ln -sfn ${firmwareGoroot} firmware/.gopls-goroot
           '';
