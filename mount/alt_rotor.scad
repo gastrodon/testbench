@@ -107,8 +107,16 @@ constraint -- measure it.");
 
         // M4 tip through the plain hole, protruding for the lock nut. The
         // step up to the journal is the shoulder that keeps the tine free.
+        //
+        // Hemispherical nose (eva): this axle has to feel its way blind
+        // through the insert, then the tine bore, then the far bracket --
+        // three coaxial holes with the telescope in the way of seeing any
+        // of them. A domed tip self-centres on each lip instead of
+        // catching on it. Costs nothing and it is the difference between
+        // assembly being fiddly and being obvious.
         translate([0, 0, z_tip_end])
             cylinder(h = axle_tip_len, d = axle_tip_thread);
+        translate([0, 0, z_tip_end]) sphere(d = axle_tip_thread);
     }
 }
 

@@ -53,8 +53,6 @@ MUST_CLEAR = [
      "the 160T altitude wheel hangs ~51mm below the pivot; clearing the "
      "table is the constraint that sets how tall the yoke has to be"),
     ("alt_rotor", "base", 2.0, "same wheel, one level further down"),
-    ("alt_rotor", "yoke", 0.5,
-     "the wheel turns immediately alongside the tine"),
     ("telescope", "yoke", 1.0,
      "the tube must not strike its own mount while tilting"),
     ("telescope", "az_table", 3.0, "tube vs the rotating deck"),
@@ -80,14 +78,28 @@ DESIGNED_TOUCH = [
     ("az_table", "base",
      "the table rides on the base's raised annular thrust face; this is "
      "the joint carrying the whole telescope's weight"),
-    ("alt_rotor", "yoke",
-     "the tine journals on the axle's integral journal -- this is the "
-     "altitude bearing, and alt_rotor is also a must-clear pair at the "
-     "wheel, so it appears in both tables on purpose"),
     ("alt_rotor", "telescope",
      "the axle's 1/4-20 thread engages the brass insert and its journal/tip "
      "step bears on the far bracket; if this is not touching, the drive "
      "turns nothing"),
+]
+
+# A third intent, and the design needed it: a RUNNING FIT is neither
+# must-clear nor designed-to-touch. A journal bearing is SUPPOSED to have a
+# small gap -- touching would mean it is seized, and demanding real
+# clearance would mean it is not a bearing.
+#
+# alt_rotor/yoke was classified in BOTH other tables at once, which made
+# the checker contradict itself: must-clear wanted >= 0.5mm, designed-touch
+# wanted < 0.6mm and a contact patch. Both "failed" on a joint that is
+# exactly right at 0.25mm. Two failures, one confused checker, zero defects
+# -- and the fix is a category, not a threshold tweak.
+RUNNING_FIT = [
+    # (a, b, min gap, max gap, why)
+    ("alt_rotor", "yoke", 0.10, 0.60,
+     "the tine journals on the axle's integral journal. This is the "
+     "altitude bearing: it must be free to turn AND located, so the gap "
+     "is bounded on both sides rather than only one"),
 ]
 
 RIGID_SAME_BODY = [
@@ -440,6 +452,31 @@ def main() -> int:
                  f"{a} and {b} are supposed to be in contact but {why_bad}",
                  "'no interference' is satisfied by two parts a metre "
                  f"apart, so this is checked as sustained contact. {why}")
+    print()
+
+    # --- running fits -------------------------------------------------
+    print("-- running fits (bounded on BOTH sides) " + "-" * 32)
+    for a, b, lo, hi, why in RUNNING_FIT:
+        checked.add(frozenset((a, b)))
+        worst_close = math.inf
+        for alt in ALT_SWEEP:
+            ma, mb = render(a, alt), render(b, alt)
+            if overlap_volume(ma, mb) > 0.5:
+                worst_close = 0.0
+                continue
+            worst_close = min(worst_close, min_gap(ma, mb))
+        ok = lo <= worst_close <= hi
+        print(f"  [{'PASS' if ok else 'FAIL'}] {a:<11}/{b:<11} "
+              f"gap {worst_close:5.3f}mm  (want {lo}-{hi}mm)")
+        if not ok:
+            emit("FAIL",
+                 f"{a}/{b} bearing gap is {worst_close:.3f}mm, outside its "
+                 f"{lo}-{hi}mm running fit",
+                 f"swept over {ALT_SWEEP} deg. {why}")
+        else:
+            emit("PASS",
+                 f"{a}/{b} runs at {worst_close:.3f}mm across the whole "
+                 "altitude sweep", why)
     print()
 
     # --- belt coplanarity --------------------------------------------

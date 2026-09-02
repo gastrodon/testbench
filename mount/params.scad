@@ -15,6 +15,9 @@
 // tele/ worktree. The optical train is somebody else's file.
 //
 // ---------------------------------------------------------------------
+
+include <nema17.scad>   // reusable stepper component, no telescope in it
+
 // PROVENANCE TAGS -- every constant below carries one:
 //   MEASURED  someone put a caliper on the real object; source cited
 //   ASSUMED   nobody has measured it yet. MUST be measured before print.
@@ -103,7 +106,16 @@ pulley_face_w   = belt_width + 1.0;  // DERIVED -- belt width + wander room
 // steps/rev do not depend on it; belt seating and backlash do.
 //   => Print gt2_coupon.scad and roll the real belt on it BEFORE
 //      committing 4 hours of filament to a 160T wheel.
-tooth_depth     = 0.764;  // approximation of the 2GT groove depth
+tooth_depth     = 0.764;  // approximation of the 2GT groove depth.
+                          // eva measured the real pulley's teeth at ~1mm
+                          // crest-to-root "as best I can measure". That is
+                          // 0.24mm over spec on a 0.76mm feature, which is
+                          // caliper-scale noise on something that small --
+                          // and the profile is already pinned two other
+                          // ways (tooth count, controlled roll), so 2GT
+                          // stands. Recorded rather than dismissed: if the
+                          // coupon does not seat, this is the first number
+                          // to revisit.
 tooth_width     = 1.494;  // approximation of the 2GT groove width
 
 
@@ -291,21 +303,27 @@ would clamp the tine and seize the altitude axis");
 // EVA-297: three "belt-axis" steppers carry the 20T pulleys on ~15mm
 // D-shafts. The fourth (extruder) has a ~4mm shaft and is explicitly NOT
 // a drop-in -- do not design for it.
-nema_side       = 42.3;  // STANDARD -- NEMA 17 faceplate
-nema_bolt_pitch = 31.0;  // STANDARD -- M3 square bolt circle
-nema_pilot_d    = 22.0;  // STANDARD -- raised pilot boss
-nema_body_len   = 40.0;  // ASSUMED -- body length is unrecorded in EVA-297
-                         // (34/40/48mm are all common). Only affects
-                         // how much room the mount leaves behind the
-                         // faceplate. MEASURE.
-nema_shaft_d    = 5.0;   // ASSUMED -- EVA-297 flags shaft DIAMETER as
-                         // explicitly unrecorded; 5mm is the NEMA 17
-                         // standard. MEASURE.
-nema_screw_d    = 3.4;   // CHOSEN -- M3 clearance
-motor_pulley_z  = 8.0;   // ASSUMED -- height of the 20T pulley's belt face
-                         // above the motor faceplate. Sets whether the two
-                         // pulleys are COPLANAR, which a belt requires
-                         // absolutely. MEASURE.
+// The motor itself now lives in nema17.scad -- a self-contained module
+// with no opinion about telescopes, because the same four salvaged motors
+// are headed for the camera dome, the laser gimbal and the microscope
+// rebuild. These are thin aliases so the rest of this directory keeps
+// reading one source of truth (rule 3), not a second copy of the numbers.
+nema_side       = nema17_side;
+nema_bolt_pitch = nema17_bolt_pitch;
+nema_pilot_d    = nema17_pilot_d;
+nema_body_len   = nema17_body_len;   // MEASURED 33 -- a SHORT NEMA 17
+nema_shaft_d    = nema17_shaft_d;
+nema_screw_d    = nema17_screw_d;
+
+// Standoff of the pulley's BELT-FACE CENTRE above the faceplate. This is
+// NOT the pulley's own height (measured at 8.0, nema17_pulley_h) -- it is
+// where that 8mm band sits along a 15mm shaft, and the two are different
+// quantities. Derived assuming the pulley is pressed on flush to the end
+// of the shaft, which is how these came off the printer:
+//     centre = shaft_len - pulley_h/2
+// Still the number that decides belt coplanarity, so it is worth
+// confirming with a depth gauge rather than inferring from the press fit.
+motor_pulley_z  = nema17_shaft_len - nema17_pulley_h / 2;   // DERIVED
 
 
 // =====================================================================
