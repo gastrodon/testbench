@@ -117,10 +117,16 @@ nema17_pulley_od  = 12.22;  // MEASURED (EVA-297) -- matches 20T GT2 spec
 //   pressed to the shaft END      -> belt-face centre 8.0mm off the face
 //   seated against the FACEPLATE  -> belt-face centre 4.0mm off the face
 //
-// Assumed flush to the end. UNVERIFIED, and it is the last thing standing
-// between this model and a belt that tracks: worth one look at whether
-// there is a visible gap between the pulley's hub and the motor's face.
-nema17_pulley_flush_end = true;   // ASSUMED -- CHECK
+// CONFIRMED flush to the end (eva, 2026-09-02): there is a several-mm gap
+// between the motor's face and the pulley.
+//
+// That is a real cross-check, not just a yes. Flush-to-end PREDICTS a gap
+// of exactly shaft_len - pulley_h = 12 - 8 = 4mm, and "several mm" is
+// what was seen. The seated-against-the-faceplate alternative predicts
+// zero gap. The observation discriminates between the two rather than
+// merely being consistent with one, which is the difference between
+// confirming a number and agreeing with it.
+nema17_pulley_flush_end = true;   // MEASURED -- gap observed, 4mm predicted
 nema17_pulley_z = nema17_pulley_flush_end
     ? nema17_shaft_len - nema17_pulley_h / 2
     : nema17_pulley_h / 2;        // DERIVED -- belt-face centre standoff
