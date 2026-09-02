@@ -5,9 +5,9 @@
 // telescope pivots against, and it carries the altitude stepper.
 //
 // Shape: one blade, not a fork. The telescope's own brackets are the fork
-// -- our tine slides BETWEEN them and is pierced by the pivot bolt (via
-// alt_sleeve). That is what "the screw goes sideways" means here: we are
-// the meat in the telescope's sandwich, not the other way round.
+// -- our tine slides BETWEEN them and is pierced by the alt_rotor's integral
+// axle. That is what "the screw goes sideways" means here: we are the meat
+// in the telescope's sandwich, not the other way round.
 //
 // The tine is tall because the ratio demands it. A 160T altitude wheel is
 // ~102mm across and hangs ~51mm below the altitude axis, so the axis has
@@ -62,7 +62,7 @@ than the minimum wrap for this pulley pair. Measure the real loop.");
     assert(yoke_knee_x > gt2_env_r_axis() + yoke_arm_d / 2,
            "yoke: the arm's knee is inside the altitude wheel's envelope -- \
 the arm would cross the wheel's plane where the wheel is");
-    assert(yoke_boss_d > sleeve_od + 2 * az_journal_fit + 2.0,
+    assert(yoke_boss_d > axle_journal_d + 2 * az_journal_fit + 2.0,
            "yoke: the pivot boss is too small to leave wall around the \
 sleeve bore. tube_bottom_above_pivot is the binding constraint here -- \
 measure it rather than shaving the wall.");
@@ -140,11 +140,15 @@ motor body would occupy the telescope's bracket gap");
             translate([-400, tube_od / 2 + 1, -400]) cube([800, 400, 800]);
         }
         }
-        // Journal bore: the tine rides on alt_sleeve's OD, so this is a
-        // RUNNING fit on the sleeve, not on the bolt.
+        // Journal bore: the tine now rides directly on the alt_rotor's
+        // integral journal -- alt_sleeve is gone, its shoulder is part of
+        // the axle. Smaller bore than the sleeve needed, which is a
+        // bonus: more wall left in the boss, which the tube's swept
+        // clearance had squeezed thin.
         translate([0, 0, yoke_local_axis_z])
             rotate([90, 0, 0])
-                cylinder(h = yoke_tine_t + 20, d = sleeve_od + 2 * az_journal_fit,
+                cylinder(h = yoke_tine_t + 20,
+                         d = axle_journal_d + 2 * az_journal_fit,
                          center = true);
         // NEMA 17 mounting: pilot bore + four M3, SLOTTED along X so the
         // belt can be tensioned. Slots run toward the wheel, i.e. -X,

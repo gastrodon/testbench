@@ -13,7 +13,7 @@ set -u
 cd "$(dirname "$0")"
 mkdir -p build
 rc=0
-parts=(gt2_coupon alt_rotor alt_sleeve yoke az_table base)
+parts=(gt2_coupon alt_rotor yoke az_table base)
 for p in "${parts[@]}"; do
     printf '%-12s ' "$p"
     if err=$(openscad --hardwarnings -o "build/$p.stl" "$p.scad" 2>&1); then

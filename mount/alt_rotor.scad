@@ -1,117 +1,102 @@
-// ALT ROTOR -- the 160T altitude wheel that clamps to the telescope.
+// ALT ROTOR -- the 160T altitude wheel and its integral stepped axle.
 //
-// Kinematic role (cad-design rule 6): this body is rigidly attached to the
-// TELESCOPE and rotates with it about the altitude axis. It is NOT
-// grounded. The grounded body in this mechanism is base.scad's plate.
+// Kinematic role (cad-design rule 6): rigidly attached to the TELESCOPE
+// and rotates with it about the altitude axis. NOT grounded. Ground is
+// base.scad's plate.
 //
-// Fastener stack along the altitude axis, outboard -> inboard:
+// eva's design, 2026-09-02. Inserted from the THREADED side, diameter
+// decreasing monotonically from wheel to tip:
 //
-//   [1/4-20 bolt head]
-//     -> alt_rotor hub          (this part, clamped hard, turns with scope)
-//     -> telescope NEAR bracket (plain clearance hole)
-//     -> alt_sleeve             (shoulder bushing, clamped hard)
-//        ... yoke tine rides FREE on the sleeve's OD ...
-//     -> telescope FAR bracket  (1/4-20 brass insert, bolt threads in here)
+//   [160T wheel]==[1/4-20 thread]==[journal]==[M4 tip]--> lock nut
+//                        |              |          |
+//               threaded bracket    yoke tine   plain 6.25 hole
 //
-// The sleeve is what makes this work: it is fractionally longer than the
-// tine is thick, so clamp load passes bracket->sleeve->bracket and never
-// pinches the tine. Without it, tightening the pivot bolt locks the
-// altitude axis solid -- a mechanism that moves as one rigid lump, which
-// is exactly the kinematic error rule 6 says no geometric check can see.
+// It replaces a separate bolt + separate shoulder bushing + printed jaws
+// hooking the bracket edge for anti-rotation. Three things improved at
+// once:
 //
-// Anti-rotation: bolt friction alone would eventually slip and lose
-// position (steps lost silently, no error raised anywhere). So the hub
-// carries a LIP that hooks over the near bracket's outer edge, keying the
-// rotor to the bracket positively. Lip geometry depends on bracket_t and
-// bracket_w, both ASSUMED -- if the real bracket is a different shape,
-// the lip is the first thing to redraw.
+//   1. TORQUE GOES THROUGH A THREAD. The old version relied on bolt-clamp
+//      friction plus a printed hook, which was the weakest load path in
+//      the build. The jaws are gone entirely.
+//   2. THE SHOULDER IS INTEGRAL. The step from journal to tip bears on
+//      the far bracket's inner face, so clamp load runs
+//      thread -> axle -> step -> far bracket and never touches the tine.
+//      alt_sleeve.scad is deleted; this is its job now. Without that step
+//      the lock nut squeezes the tine and the altitude axis seizes -- and
+//      a seized axis interferes with nothing and passes every geometric
+//      check ever written.
+//   3. IT RESOLVED THE 6.25mm BLOCKER. A 1/4-20 shank does not fit the
+//      measured plain hole. Entering from the threaded side means only
+//      the 4mm tip ever visits that hole.
 //
-// FRAME (rule 5 -- print orientation is not assembly orientation):
-// modelled in its own LOCAL frame with the wheel axis along +Z and the
-// wheel centred on Z=0. The hub and lip grow toward -Z, which is the
-// inboard/telescope side. assembly.scad does all posing; nothing in this
-// file knows where the telescope is.
+// The thin sections carry no drive torque: the thread sits immediately
+// inboard of the wheel, so torque transfers to the telescope right there.
+// Journal and tip see bending only, over a 16.5mm span, from a scope of
+// order 1-2kg -- roughly 11 MPa against PLA's ~50, so ~4x margin.
+//
+// FRAME (rule 5): local, wheel axis along +Z, wheel centred on Z=0. Axle
+// grows toward -Z, which is inboard. assembly.scad does all posing.
 
 include <params.scad>
 use <gt2.scad>
 
-// rotor_hub_h lives in params.scad: alt_rotor_offset_y is derived from it,
-// so it is shared by this file, yoke.scad and assembly.scad (rule 3).
-// rotor_hub_d is DERIVED in params.scad from the tube's swept clearance,
-// not chosen here -- see the note there. Choosing it is what put 74.5 mm3
-// of hub inside the telescope.
+rotor_face_z = -gt2_envelope_h() / 2;   // inboard face of the wheel
 
-// How far the anti-rotation jaws reach back over the bracket's edge.
-// Bounded ABOVE, not below: the jaws sweep an annulus as the scope tilts,
-// so their tips must stop short of the tine's face or they grind it on
-// every altitude move. The gap from the bracket's outer face to the tine
-// face is bracket_t + (bracket_gap - yoke_tine_t)/2.
-//
-// The first version asserted the opposite (lip_depth > bracket_t) on the
-// theory that the lip had to reach past the bracket to key anything. It
-// does not -- partial engagement on the bracket edge keys it fine, and
-// reaching past guarantees a collision.
-rotor_lip_max   = bracket_t + (bracket_gap - yoke_tine_t) / 2;
-rotor_lip_depth = 2.5;
-rotor_face_z    = -gt2_envelope_h() / 2;  // inboard face of the wheel, local Z
+// Axle stations, walked inboard from the wheel's inboard face. Written as
+// a running sum rather than four hand-typed offsets, because these have to
+// stay consistent with alt_rotor_offset_y in params.scad -- the same walk,
+// in the same order.
+z_thread_start  = rotor_face_z - rotor_hub_h;                    // hub ends
+z_thread_end    = z_thread_start - axle_thread_len;
+z_journal_end   = z_thread_end - axle_journal_len;
+z_tip_end       = z_journal_end - axle_tip_len;
 
 module alt_rotor() {
     assert_fastener_fits();
     assert(is_num(axis_teeth), "alt_rotor: params.scad not included");
-    assert(rotor_lip_depth > 0.8,
-           "alt_rotor: lip too shallow to key anything against the bracket");
-    assert(rotor_lip_depth < rotor_lip_max,
-           str("alt_rotor: lip_depth ", rotor_lip_depth, " reaches past the ",
-               "bracket into the yoke tine's swept path (max ",
-               rotor_lip_max, ")"));
+    assert(rotor_hub_d > alt_bolt_major + 2 * wall,
+           "alt_rotor: the tube's swept clearance has squeezed the hub down \
+past the thread it has to carry. tube_bottom_above_pivot is the binding \
+constraint -- measure it.");
     assert(rotor_hub_d <= bracket_free_r * 2,
            "alt_rotor: hub fouls telescope structure on the bracket face");
-    assert(rotor_hub_d > alt_bolt_major * 1.9 + 2 * wall,
-           "alt_rotor: the tube's swept clearance has squeezed the hub down \
-past its own bolt-head counterbore. tube_bottom_above_pivot is the binding \
-constraint -- measure it.");
 
-    difference() {
-        union() {
-            gt2_pulley(axis_teeth);                     // wheel, centred Z=0
-            translate([0, 0, rotor_face_z - rotor_hub_h])
-                cylinder(h = rotor_hub_h + 1, d = rotor_hub_d);  // hub, -Z
-            // Anti-rotation jaws straddling the bracket's outer edge.
-            //
-            // Offset by `clearance` so the jaws' inner faces sit just
-            // outside the bracket rather than exactly ON it. Flush was the
-            // first version -- the two faces were mathematically
-            // coincident, which is a jaw that cannot be pushed over the
-            // bracket at all. The 0.25mm of slop is also the keying
-            // backlash, small against 0.225 deg per full step.
-            //
-            // (This was NOT the cause of the 74.5 mm3 the checker found on
-            // the rotor/telescope pair -- that was the hub, and the number
-            // did not move when this was fixed. Worth recording: the
-            // plausible explanation and the true one were different
-            // features, and only measuring the overlap's bounding box told
-            // them apart.)
-            for (s = [-1, 1])
-                translate([s * (bracket_w / 2 + clearance + wall / 2),
-                           0,
-                           rotor_face_z - rotor_hub_h - rotor_lip_depth / 2])
-                    cube([wall, rotor_hub_d * 0.7, rotor_lip_depth],
-                         center = true);
+    union() {
+        difference() {
+            union() {
+                gt2_pulley(axis_teeth);              // wheel, centred Z=0
+                // Hub: stands the wheel off clear of the tube.
+                translate([0, 0, z_thread_start])
+                    cylinder(h = rotor_hub_h + 1, d = rotor_hub_d);
+            }
+            // Lighten the wheel. A solid 102mm disc is a lot of filament
+            // for a part carrying very little load -- 8:1 off a NEMA 17 is
+            // enormous torque margin against a 50mm toy refractor.
+            for (i = [0 : 4])
+                rotate([0, 0, i * 72])
+                    translate([axis_od / 4 + 4, 0, 0])
+                        cylinder(h = 60, d = 16, center = true);
         }
-        // Pivot bore -- CLEARANCE, because the bolt threads into the far
-        // bracket, not into this part.
-        translate([0, 0, rotor_face_z - rotor_hub_h - rotor_lip_depth - 2])
-            cylinder(h = 60, d = alt_bolt_major + 2 * clearance);
-        // Bolt-head counterbore on the outboard (+Z) face.
-        translate([0, 0, gt2_envelope_h() / 2 - 3])
-            cylinder(h = 10, d = alt_bolt_major * 1.9);
-        // Lightening holes. A solid 102mm disc is a lot of filament for a
-        // part carrying very little load -- 8:1 off a NEMA 17 is enormous
-        // torque margin against a 50mm toy refractor.
-        for (i = [0 : 4])
-            rotate([0, 0, i * 72])
-                translate([axis_od / 4 + 4, 0, 0])
-                    cylinder(h = 60, d = 16, center = true);
+
+        // 1/4-20 male thread into the brass insert. Modelled as a plain
+        // cylinder at MAJOR diameter, not as cut threads: this is the one
+        // load-bearing thread in the mechanism and it gets settled by
+        // print on axle_coupon.scad, the same way the microscope build
+        // settled its M12 and the way the GT2 flank is being settled.
+        // Modelling a thread form here would look authoritative and prove
+        // nothing.
+        translate([0, 0, z_thread_end])
+            cylinder(h = axle_thread_len, d = alt_bolt_major);
+
+        // Journal: what the yoke tine actually rides on. Capped by the
+        // insert's bore, because it has to pass through it on the way in.
+        translate([0, 0, z_journal_end])
+            cylinder(h = axle_journal_len, d = axle_journal_d);
+
+        // M4 tip through the plain hole, protruding for the lock nut. The
+        // step up to the journal is the shoulder that keeps the tine free.
+        translate([0, 0, z_tip_end])
+            cylinder(h = axle_tip_len, d = axle_tip_thread);
     }
 }
 

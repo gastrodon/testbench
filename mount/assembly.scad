@@ -13,11 +13,10 @@
 //         +-- yoke        rigid on az_table (bolted)
 //              +-- telescope    rotate alt_angle about the altitude axis
 //                   +-- alt_rotor   rigid on telescope (clamped)
-//                   +-- alt_sleeve  rigid on telescope (clamped)
 //
-// Note where alt_sleeve sits in that tree: on the TELESCOPE, not on the
-// yoke. If it were rigid on the yoke, the altitude axis would be locked
-// and the mechanism would be a statue that passes every check.
+// alt_rotor carries its own axle, and that axle is rigid on the TELESCOPE,
+// not on the yoke. If it were rigid on the yoke the altitude axis would be
+// locked and the mechanism a statue that passes every check.
 //
 // Drive it with -D on the command line ($-variables cannot be set with -D,
 // which is why these are plain names -- see AGENTS.md):
@@ -27,7 +26,6 @@
 include <params.scad>
 use <gt2.scad>
 use <alt_rotor.scad>
-use <alt_sleeve.scad>
 use <yoke.scad>
 use <az_table.scad>
 use <base.scad>
@@ -132,10 +130,6 @@ module assembly(az = az_angle, alt = alt_angle) {
                         rotate([-90, 0, 0])
                             translate([0, 0, alt_rotor_offset_y])
                                 alt_rotor();
-                    color("orange", 0.9)
-                        rotate([-90, 0, 0])
-                            translate([0, 0, -sleeve_len / 2])
-                                alt_sleeve();
                     if (show_telescope) telescope_proxy();
                 }
             }

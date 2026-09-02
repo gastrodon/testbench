@@ -202,19 +202,80 @@ tube_len_behind    = 320.0; // ASSUMED -- how far the tube extends from the
 // This is a hard physical conflict, not a tolerance to absorb: 6.25 < 6.35
 // means the bolt does not fit, full stop. Fails the build loudly rather
 // than producing STLs for a mechanism that cannot be assembled.
+// =====================================================================
+// 3b. INTEGRAL STEPPED AXLE  (eva's design, 2026-09-02)
+// =====================================================================
+// The wheel and its shaft are ONE part, inserted from the THREADED side,
+// and the diameter only ever decreases from the wheel toward the tip.
+// That monotonic taper is what makes it assemblable: every section
+// inboard of the thread has to pass through the brass insert's bore
+// before the thread engages.
+//
+//   [160T wheel]==[1/4-20 thread]==[journal]==[M4 tip]-> lock nut
+//                       |              |          |
+//              threaded bracket   yoke tine   plain 6.25 hole
+//
+// Why this beats the separate-bolt version it replaces:
+//   - torque goes through a THREAD, not through bolt-clamp friction plus
+//     printed jaws hooking a bracket edge. That was the sketchiest load
+//     path in the build and it is now gone, jaws and all.
+//   - the shoulder between journal and tip does alt_sleeve's job, so that
+//     part disappears entirely.
+//   - it sidesteps the 6.25mm blocker: nothing 6.35mm wide ever has to
+//     pass through the plain hole. Only the 4mm tip goes there.
+//
+// Torque never reaches the thin sections: the thread sits immediately
+// inboard of the wheel, so drive torque transfers to the telescope right
+// there. Journal and tip carry bending only, and very little of it.
+
+insert_id       = 5.2;   // MEASURED -- EVA-319, the brass insert's
+                         // threaded-side ID. THE binding constraint: every
+                         // section inboard of the thread must clear this.
+axle_journal_d  = insert_id - 0.4;                      // DERIVED -- 4.8
+axle_tip_thread = 4.0;   // CHOSEN -- M4. Comfortably under the journal so
+                         // the taper stays monotonic, and small enough to
+                         // pass the insert with room to spare.
+
+// Journal length is the bracket gap exactly. The step down to the tip
+// bears on the far bracket's inner face, so the clamp path runs
+// thread -> axle -> step -> far bracket and NEVER through the tine. Same
+// shoulder trick alt_sleeve used, now integral: without it, tightening
+// the lock nut squeezes the tine and the altitude axis seizes -- a
+// mechanism that moves as one rigid lump and passes every geometric test.
+axle_journal_len = bracket_gap;                          // DERIVED
+axle_thread_len  = bracket_t + 1.5;                      // DERIVED
+axle_tip_len     = bracket_t + 4.0;   // through the far bracket, with
+                                      // enough protruding for the nut
+
+// The lock nut is not decoration. Drive torque reacts across the 1/4-20
+// thread and the altitude axis reverses constantly, so half the reversals
+// tend to unscrew it and it walks loose over time. eva's "overshoot the
+// far hole" is what makes the fix possible -- the tip protrudes and gets
+// captured.
+axle_lock_nut   = true;  // CHOSEN
+
 // Scoped to the parts that actually route the fastener, NOT file scope --
 // a file-scope assert also killed gt2_coupon, which has no opinion about
 // brackets and is the very thing we want printed early. An assert that
 // blocks unrelated work gets commented out, and then it protects nothing.
+// The stepped axle RESOLVED the 6.25 conflict rather than working around
+// it: entering from the threaded side means only the M4 tip visits the
+// plain hole. So the old "does a 1/4-20 fit through 6.25" assert is gone,
+// replaced by the checks that now actually bind.
 module assert_fastener_fits() {
-    assert(bracket_clear_d >= alt_bolt_major,
-           str("the plain bracket hole measures ", bracket_clear_d,
-               "mm, which is under a 1/4-20's ", alt_bolt_major,
-               "mm major diameter -- the shank does not pass through it. ",
-               "CHECK: try a real 1/4-20 through the hole. If it goes, the ",
-               "hole is nearer 6.35 and the caliper reading was tight. If ",
-               "it does not, either the hole gets opened up or the ",
-               "fastener enters from the threaded side instead."));
+    assert(axle_journal_d < insert_id,
+           str("axle journal ", axle_journal_d, "mm will not pass through ",
+               "the insert's ", insert_id, "mm bore during assembly -- the ",
+               "axle cannot be inserted at all"));
+    assert(axle_tip_thread < axle_journal_d,
+           "axle taper is not monotonic: the tip is fatter than the \
+journal, so it cannot pass the insert ahead of it");
+    assert(axle_tip_thread < bracket_clear_d,
+           str("the M4 tip does not fit the plain hole (", bracket_clear_d,
+               "mm)"));
+    assert(axle_journal_len > yoke_tine_t,
+           "axle journal is shorter than the tine is thick -- the lock nut \
+would clamp the tine and seize the altitude axis");
 }
 
 // =====================================================================
@@ -457,14 +518,11 @@ az_motor_pocket  = base_plate_t - az_motor_face_z;      // DERIVED
 // clearance.
 yoke_tine_t = bracket_gap - 2 * clearance;   // DERIVED
 
-// Shoulder sleeve on the altitude axis. Lives here, not in alt_sleeve.scad,
-// because yoke.scad's journal bore is a running fit ON this OD -- two files
-// needing the same number means it belongs to neither of them (rule 3).
-sleeve_shoulder_gap = 0.3;   // CHOSEN -- sleeve stands proud of the tine
-sleeve_wall         = 2.0;   // CHOSEN
-sleeve_len = yoke_tine_t + sleeve_shoulder_gap;              // DERIVED
-sleeve_id  = alt_bolt_major + 2 * clearance;                 // DERIVED
-sleeve_od  = sleeve_id + 2 * sleeve_wall;                    // DERIVED
+// The separate shoulder sleeve is GONE -- alt_rotor's integral axle does
+// its job now (see section 3b). What it protected against still applies:
+// the journal must be longer than the tine is thick, or the lock nut
+// clamps the tine and seizes the axis. That is asserted in
+// assert_fastener_fits().
 
 // Yoke-to-table bolt pattern. Shared by yoke.scad (which drills the foot)
 // and az_table.scad (which drills the deck) -- if these two ever drift the

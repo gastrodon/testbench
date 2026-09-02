@@ -48,7 +48,7 @@ shot "az-axis-top" "0,0,0" -D "alt_angle=0"
 shot "front" "90,0,90" -D "alt_angle=45"
 # Single parts, isolated, down their own axis.
 part_shot alt_rotor alt_rotor "0,0,0"        # down the wheel axis
-part_shot alt_rotor alt_rotor-side "90,0,0"  # across it: hub and lip stack
+part_shot alt_rotor alt_rotor-side "90,0,0"  # across it: the stepped axle
 part_shot yoke      yoke       "90,0,0"
 part_shot base      base       "0,0,0"
 part_shot az_table  az_table   "90,0,0"

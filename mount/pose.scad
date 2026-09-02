@@ -16,7 +16,6 @@
 include <params.scad>
 use <gt2.scad>
 use <alt_rotor.scad>
-use <alt_sleeve.scad>
 use <yoke.scad>
 use <az_table.scad>
 use <base.scad>
@@ -75,10 +74,6 @@ module posed() {
                         rotate([-90, 0, 0])
                             translate([0, 0, alt_rotor_offset_y])
                                 alt_rotor();
-                    if (part == "alt_sleeve")
-                        rotate([-90, 0, 0])
-                            translate([0, 0, -sleeve_len / 2])
-                                alt_sleeve();
                     if (part == "telescope") telescope_proxy();
                 }
             }
@@ -90,7 +85,7 @@ module posed() {
 // watertight, valid, and would sail through every downstream check as
 // "no interference". Fail loudly instead.
 assert(search([part], [["base", "az_motor", "az_table", "yoke", "alt_motor",
-                        "alt_rotor", "alt_sleeve", "telescope"]][0]) != [[]],
+                        "alt_rotor", "telescope"]][0]) != [[]],
        str("pose.scad: unknown part '", part, "'"));
 
 posed();

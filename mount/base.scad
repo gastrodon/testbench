@@ -64,7 +64,7 @@ grow an arm. Measure belt_loop_len first.");
         }
         // Retaining screw, up the post's centre. Holds the table captive
         // against the thrust face without clamping it -- same shoulder
-        // principle as alt_sleeve, one axis down.
+        // shoulder principle the alt axle uses, one axis down.
         translate([0, 0, base_plate_t * 0.4])
             cylinder(h = az_post_h + 20, d = az_retain_d);
         // Tripod socket: captured 1/4"-20 hex nut, pocket opening

@@ -70,13 +70,9 @@ MUST_CLEAR = [
      "the azimuth stepper now stands body-UP on the base plate, so it is "
      "in the tube's swept path in a way a body-down motor would not be"),
     ("az_motor", "alt_rotor", 2.0, "azimuth stepper vs the altitude wheel"),
-    ("az_motor", "alt_sleeve", 2.0, "azimuth stepper vs the pivot bushing"),
     ("az_motor", "alt_motor", 2.0, "the two steppers vs each other"),
     ("alt_motor", "alt_rotor", 1.0,
      "the altitude stepper sits one belt-span from the wheel it drives"),
-    ("alt_motor", "alt_sleeve", 2.0, "altitude stepper vs the pivot bushing"),
-    ("alt_sleeve", "az_table", 3.0, "pivot bushing vs the deck below it"),
-    ("alt_sleeve", "base", 3.0, "pivot bushing vs ground"),
 ]
 
 DESIGNED_TOUCH = [
@@ -84,19 +80,20 @@ DESIGNED_TOUCH = [
     ("az_table", "base",
      "the table rides on the base's raised annular thrust face; this is "
      "the joint carrying the whole telescope's weight"),
-    ("alt_sleeve", "yoke",
-     "the tine journals on the sleeve OD -- this is the altitude bearing"),
+    ("alt_rotor", "yoke",
+     "the tine journals on the axle's integral journal -- this is the "
+     "altitude bearing, and alt_rotor is also a must-clear pair at the "
+     "wheel, so it appears in both tables on purpose"),
     ("alt_rotor", "telescope",
-     "the rotor is clamped to the near bracket's outer face and keyed by "
-     "its lip; if this is not touching, the drive turns nothing"),
+     "the axle's 1/4-20 thread engages the brass insert and its journal/tip "
+     "step bears on the far bracket; if this is not touching, the drive "
+     "turns nothing"),
 ]
 
 RIGID_SAME_BODY = [
     # Pairs that share a rigid body, so overlap between them is meaningless
     # to test. Listed EXPLICITLY rather than silently skipped -- a blanket
     # exemption is how a real clash gets waved through (rule 1).
-    ("alt_sleeve", "telescope"),
-    ("alt_sleeve", "alt_rotor"),
     ("yoke", "az_table"),
     ("yoke", "base"),         # via az_table, not directly, but co-static
     ("az_motor", "base"),
@@ -106,7 +103,7 @@ RIGID_SAME_BODY = [
 ]
 
 PARTS = ["base", "az_motor", "az_table", "yoke", "alt_motor",
-         "alt_rotor", "alt_sleeve", "telescope"]
+         "alt_rotor", "telescope"]
 
 # Parts that do not move with altitude -- rendered once, reused at every
 # pose, because re-rendering a 160T wheel seven times is minutes wasted.
@@ -123,7 +120,7 @@ def scad_params() -> dict:
         "axis_teeth", "motor_teeth", "reduction", "axis_pd", "motor_pd",
         "axis_centre_dist", "belt_loop_len", "belt_width", "alt_axis_z",
         "az_table_t", "base_plate_t", "az_thrust_r", "az_post_h",
-        "yoke_tine_t", "sleeve_len", "sleeve_od", "sleeve_id",
+        "yoke_tine_t", "axle_journal_d", "axle_journal_len", "insert_id",
         "bracket_gap", "bracket_t", "alt_min_deg", "alt_max_deg",
         "tube_od", "tube_len_behind", "pulley_face_w", "yoke_local_axis_z",
         "belt_pld", "tooth_depth", "alt_rotor_offset_y", "az_deck_z",
