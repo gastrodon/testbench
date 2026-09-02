@@ -130,7 +130,13 @@ much damage a wrong guess does:
 4. **`motor_pulley_z`** — how high the 20T pulley's belt face sits above
    the motor faceplate. A belt drive absolutely requires coplanar pulleys.
 5. **`tube_len_behind`** — decides the altitude ceiling outright.
-6. **`belt_width`**, **`nema_shaft_d`**, **`nema_body_len`**, **`tube_od`**.
+6. **`belt_width`**, **`tube_od`**.
+
+The stepper is now measured and lives in `nema17.scad` as a standalone,
+copy-anywhere module. Its D-cut depth and flat length are **deferred, not
+pending** — nothing in this build reads them, because the salvaged
+pulleys are existing metal parts and nothing we print mates to a shaft.
+They matter the day `gt2_pulley_on_shaft()` gets used for real.
 
 EVA-297 already lists the shaft diameter and stepper spec labels as
 open TODOs — this build needs them.

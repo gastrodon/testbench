@@ -52,26 +52,78 @@ nema17_pilot_d    = 22.0;   // STANDARD raised boss
 // CONVENTION, not spec -- which is a weaker claim than the bolt square
 // and is tagged accordingly. EVA-297 already lists the shaft diameter as
 // explicitly unrecorded.
-nema17_shaft_d    = 5.0;    // CONVENTION -- near-universal, not NEMA spec.
-                            // MEASURE.
-nema17_shaft_flat = 4.5;    // CONVENTION -- across the flat of the D. A
-                            // 0.5mm cut on a 5mm shaft. MEASURE: this is
-                            // what actually transmits torque to a pulley,
-                            // and it is the least standardized dimension
-                            // on the whole motor.
-nema17_flat_len   = 10.0;   // ASSUMED -- flat length varies freely between
-                            // manufacturers. MEASURE.
-nema17_grub_d     = 3.0;    // CONVENTION -- M3 set screws, usually two at
-                            // 90deg with one bearing on the flat
-nema17_shaft_len  = 15.0;   // MEASURED (EVA-297) -- the three belt-axis
-                            // motors. NOT the extruder motor, which has a
-                            // ~4mm stub and is not a drop-in for anything.
+nema17_shaft_d    = 5.0;    // MEASURED (eva, 2026-09-02) -- and it lands
+                            // on the near-universal convention, so the
+                            // convention is now confirmed rather than
+                            // merely assumed.
+
+// THE FLAT, measured by its visible WIDTH rather than by across-flat.
+//
+// eva measured "the flat part width, right in the neighbourhood of 3.5mm"
+// (2026-09-02). That phrasing has two readings and they differ by 2x, so
+// it is worth writing out which one this is and why:
+//
+//   chord width 3.5     -> flat plane 1.785 off axis -> across-flat 4.285,
+//                          i.e. a 0.72mm cut
+//   across-flat 3.5     -> a 1.50mm cut, and the visible flat would then
+//                          be 4.58mm wide
+//
+// The first lands right next to the near-universal 4.5mm / 0.5mm-cut
+// convention; the second would be an unusually deep cut. So this is read
+// as the chord -- the width of the flat face you can see and put calipers
+// across -- and the convention corroborates it rather than the other way
+// round.
+//
+// Parameterised by the CHORD because that is the dimension a caliper can
+// actually take off a mounted motor. Across-flat is derived from it:
+//
+//   d = sqrt(r^2 - (w/2)^2)        across_flat = d + r
+//
+nema17_flat_w     = 3.5;    // MEASURED -- visible width of the flat face
+function nema17_flat_across(shaft_d = 5.0, w = 3.5) =
+    let (r = shaft_d / 2) sqrt(r * r - (w / 2) * (w / 2)) + r;
+nema17_shaft_flat = nema17_flat_across(5.0, nema17_flat_w);   // DERIVED
+
+// Flat LENGTH is still deferred, and deferred is not the same as pending:
+// nothing in this build reads it. The salvaged pulleys are existing metal
+// parts already pressed on, and nothing we print mates to a D-shaft. It
+// matters the day gt2_pulley_on_shaft() gets used for real.
+//
+// When it does: caliper across the shaft at intervals along its length
+// and find where the reading steps from across-flat back up to the full
+// 5.0. That station is the end of the flat. Usually impossible with the
+// pulley on, since the pulley covers the part you want -- and not worth
+// pulling a press fit apart for a number nothing is waiting on.
+nema17_flat_len   = 8.0;    // ASSUMED, DEFERRED
+
+nema17_shaft_len  = 12.0;   // MEASURED (eva, 2026-09-02) -- directly, on
+                            // the motor in hand. SUPERSEDES EVA-297's
+                            // "~15mm", which was an eyeball figure across
+                            // all three belt-axis motors. Still nothing
+                            // like the extruder motor's ~4mm stub, which
+                            // remains not a drop-in for anything.
 nema17_screw_d    = 3.4;    // CHOSEN -- M3 clearance
 nema17_boss_h     = 2.0;    // STANDARD-ish, raised pilot height
 
 // The 20T GT2 pulley already pressed onto these shafts.
 nema17_pulley_h   = 8.0;    // MEASURED -- the pulley's own overall height
 nema17_pulley_od  = 12.22;  // MEASURED (EVA-297) -- matches 20T GT2 spec
+
+// WHERE ALONG THE SHAFT the pulley sits. An 8mm pulley on a 12mm shaft
+// leaves only 4mm of slack, so this is a choice between two positions
+// about 4mm apart -- and 4mm is a LOT, because this number sets the belt
+// plane and a belt will not run at an angle.
+//
+//   pressed to the shaft END      -> belt-face centre 8.0mm off the face
+//   seated against the FACEPLATE  -> belt-face centre 4.0mm off the face
+//
+// Assumed flush to the end. UNVERIFIED, and it is the last thing standing
+// between this model and a belt that tracks: worth one look at whether
+// there is a visible gap between the pulley's hub and the motor's face.
+nema17_pulley_flush_end = true;   // ASSUMED -- CHECK
+nema17_pulley_z = nema17_pulley_flush_end
+    ? nema17_shaft_len - nema17_pulley_h / 2
+    : nema17_pulley_h / 2;        // DERIVED -- belt-face centre standoff
 
 // Solid body proxy, for clearance checking. Faceplate at Z=0, body growing
 // toward -Z, centred on the SHAFT AXIS. Drawing it from a corner instead
@@ -131,8 +183,8 @@ module nema17(with_shaft = true) {
 // not the tooth form. The real part is metal and we are not making it.
 module nema17_pulley_envelope(pulley_h = nema17_pulley_h,
                               pulley_od = nema17_pulley_od,
-                              shaft_len = nema17_shaft_len) {
-    translate([0, 0, shaft_len - pulley_h])
+                              pulley_z = nema17_pulley_z) {
+    translate([0, 0, pulley_z - pulley_h / 2])
         cylinder(h = pulley_h, d = pulley_od);
 }
 

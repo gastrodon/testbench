@@ -315,15 +315,11 @@ nema_body_len   = nema17_body_len;   // MEASURED 33 -- a SHORT NEMA 17
 nema_shaft_d    = nema17_shaft_d;
 nema_screw_d    = nema17_screw_d;
 
-// Standoff of the pulley's BELT-FACE CENTRE above the faceplate. This is
-// NOT the pulley's own height (measured at 8.0, nema17_pulley_h) -- it is
-// where that 8mm band sits along a 15mm shaft, and the two are different
-// quantities. Derived assuming the pulley is pressed on flush to the end
-// of the shaft, which is how these came off the printer:
-//     centre = shaft_len - pulley_h/2
-// Still the number that decides belt coplanarity, so it is worth
-// confirming with a depth gauge rather than inferring from the press fit.
-motor_pulley_z  = nema17_shaft_len - nema17_pulley_h / 2;   // DERIVED
+// Standoff of the pulley's BELT-FACE CENTRE above the faceplate -- NOT
+// the pulley's own 8mm height. nema17.scad owns the derivation and the
+// assumption behind it (flush to the shaft end vs seated against the
+// faceplate, a 4mm difference that decides belt coplanarity).
+motor_pulley_z  = nema17_pulley_z;
 
 
 // =====================================================================
