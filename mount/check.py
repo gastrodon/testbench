@@ -501,23 +501,33 @@ def main() -> int:
     pivot = float(p["alt_axis_z"])
     max_behind = pivot / max(math.sin(math.radians(zmax)), 1e-9)
     reach_ok = math.degrees(math.asin(min(1.0, pivot / float(p["tube_len_behind"]))))
-    print(f"  pivot sits {pivot:.1f}mm above the ground plane")
-    print(f"  at {zmax:.0f} deg the tube's rear end drops {drop:.1f}mm below it")
-    print(f"  ground is cleared up to ~{reach_ok:.1f} deg of altitude")
-    print(f"  reaching {zmax:.0f} deg needs the tube to extend no more than "
-          f"{max_behind:.0f}mm behind the pivot (params says "
-          f"{p['tube_len_behind']:.0f}mm, ASSUMED)")
+    # z=0 is the tripod MOUNTING FACE, not a floor. On a real tripod that
+    # is free air and the tail is welcome to swing below it -- so this
+    # plane is a datum, NOT an obstacle.
+    #
+    # Reporting it as one was a genuine measurement-framing error: it put
+    # the ceiling at ~14 deg when the parts actually allow ~52, and it read
+    # convincingly because the arithmetic was right. The number was correct
+    # and the claim it supported was not. Rule 4 in a form worth naming --
+    # a checker can measure the wrong thing accurately.
+    print(f"  pivot sits {pivot:.1f}mm above the tripod face")
+    print(f"  at {zmax:.0f} deg the tail swings {drop:.1f}mm below that face")
+    print(f"  -- which is a datum, not an obstacle. The ceiling that binds "
+          f"is the tail striking real parts; see the swept pairs above.")
+    print(f"  clearing the tripod face outright would need the tail under "
+          f"{max_behind:.0f}mm (params says {p['tube_len_behind']:.0f}mm, "
+          f"ASSUMED)")
     if drop > pivot:
-        emit("FAIL",
-             f"zenith is geometrically unreachable: at {zmax:.0f} deg the "
-             f"tube's rear end is {drop - pivot:.0f}mm below the ground plane",
-             f"pivot height {pivot:.1f}mm vs a tube extending "
-             f"{p['tube_len_behind']:.0f}mm behind it (ASSUMED, unmeasured). "
-             f"Ground clears to ~{reach_ok:.1f} deg. This is set by where "
-             "the pivot sits ALONG the tube, which nobody has measured -- "
-             "it is a parameter question, not a modelling defect, and the "
-             "options are a riser, a lower altitude ceiling, or the real "
-             "measurement")
+        emit("WARN",
+             f"the tail swings {drop - pivot:.0f}mm below the tripod face at "
+             f"{zmax:.0f} deg",
+             f"pivot {pivot:.1f}mm up vs a {p['tube_len_behind']:.0f}mm tail "
+             "(ASSUMED). WARN not FAIL: below the tripod face is free air. "
+             "The ceiling that matters is the tail hitting the base plate "
+             "and the rotating deck -- measured clear to 50 deg, first "
+             "graze at 55, hard collision at 60, so ~52 deg. Raising it "
+             "means a shorter tail behind the pivot, a taller yoke, or a "
+             "narrower base")
 
     # --- completeness -------------------------------------------------
     all_pairs = {frozenset((a, b)) for i, a in enumerate(PARTS)

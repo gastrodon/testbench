@@ -135,29 +135,37 @@ much damage a wrong guess does:
 EVA-297 already lists the shaft diameter and stepper spec labels as
 open TODOs — this build needs them.
 
-## Altitude reach is set by where the pivot sits along the tube
+## Altitude reach: ~52 degrees, measured
 
-The pivot sits 77.1 mm above the tripod face. The tube's rear end swings
-`tube_len_behind × sin(altitude)` below the pivot, so with the assumed
-320 mm the rig clears the ground only up to **~14°** of altitude — nowhere
-near the hemisphere. `check.py` prints the ceiling and flags it.
+| altitude | result |
+| -- | -- |
+| 30–50° | clear |
+| 55° | first graze — 3.8 mm³ against the base plate |
+| 60° | hard collision — 246 mm³ into the deck, 1189 mm³ into the base |
 
-Reaching a given altitude needs the tube to extend no more than
-`77.1 / sin(altitude)` mm behind the pivot: ~77 mm for zenith, ~89 mm for
-60°, ~154 mm for 30°.
+**The ceiling is ~52°, not 90°.** The tube's tail swings down as it tilts
+and strikes the base plate and the rotating deck.
 
-**This is a parameter question, not a modelling defect.** `tube_len_behind`
-is ASSUMED and unmeasured; it depends on where along the tube the bracket
-pair actually sits, which nobody has checked. Three honest options, and
-which one is right depends on that measurement:
+A word on how this was nearly mis-reported. `check.py` originally measured
+the tail against the plane `z = 0` and called it "ground", which put the
+ceiling at **~14°**. The arithmetic was right and the claim was wrong:
+`z = 0` is the tripod *mounting face*, and on a real tripod that is free
+air — the tail may swing below it freely. A checker can measure the wrong
+thing perfectly accurately. The number that binds comes from the swept
+must-clear pairs, because those are collisions with hardware that exists.
 
-- measure it first — if the brackets are near the tube's balance point the
-  problem mostly evaporates;
-- accept a lower altitude ceiling (`alt_max_deg`) — hemispherical coverage
-  degrades to a cone, which may be fine;
-- add a riser under the base, which costs rigidity on a tipping load.
+`tube_len_behind` is ASSUMED at 320 mm and drives all of it — it depends
+on where along the tube the bracket pair sits, which nobody has measured.
+Three ways to raise the ceiling, and which is right depends on that:
 
-Not silently patched by nudging a number until the check went green.
+- **measure it first** — a shorter tail behind the pivot buys altitude
+  directly;
+- **a taller yoke or a riser**, which costs rigidity on a tipping load;
+- **a narrower base** — the tail currently strikes a 62 mm-radius plate
+  and a 51.7 mm-radius deck, and both are wider than they strictly need
+  to be.
+
+Not patched by nudging a number until the check went green.
 
 ## Verification
 
@@ -197,9 +205,9 @@ to 0.001 mm, the thrust face and the altitude journal both show real
 distributed contact.
 
 The only remaining failures are the **altitude reach** group —
-`telescope` against `yoke` / `az_table` / `base` at 60–75°, plus the
-computed ceiling. They are one issue with one cause, `tube_len_behind`,
-and they are left failing on purpose. See the section above.
+`telescope` against `yoke` / `az_table` / `base` at 60° and beyond. They
+are one issue with one cause, `tube_len_behind`, and they are left
+failing on purpose. Measured ceiling: **~52°**. See above.
 
 ## Open items, not silently designed around
 
