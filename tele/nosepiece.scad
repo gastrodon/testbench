@@ -51,18 +51,21 @@ nose_chamfer = 1.0;
 // a cold-read of the first print's renders flagged the step as a stress
 // riser / delamination point with nothing wrong about the observation,
 // and a hard step prints less cleanly than a curve regardless of which
-// side of it ends up an overhang in a given orientation. Radius is set
-// to flange_t (the flange's own depth, the "non-45deg" section as
-// opposed to the taper above it) rather than an arbitrary value, so it
-// scales with the part instead of needing its own tuning.
-nose_flange_fillet_r = flange_t;
-
+// side of it ends up an overhang in a given orientation.
+//
+// AN EARLIER VERSION of this set the radius to flange_t, which seemed
+// like a reasonable existing dimension to reuse — but a quarter circle
+// tangent to a vertical wall at one end and a horizontal face at the
+// other has run and rise LOCKED EQUAL by construction (a quarter turn
+// always projects the same distance onto both axes). flange_t (2.0mm)
+// is smaller than the actual radial gap between the nose and flange
+// (3.25mm), so that arc fell short of the flange's own OD and left a
+// flat, unrounded shelf plus a fresh hard corner right where the arc
+// met the flange wall — the exact defect this feature exists to remove,
+// just relocated outward. There is only one radius that reaches both
+// walls with nothing left over: the radial gap itself. Not a free
+// choice to retune.
 module nose_and_flange() {
-    // Radial gap the fillet has to cross.
-    fillet_gap = flange_od / 2 - nose_od_male / 2;
-    assert(nose_flange_fillet_r <= fillet_gap,
-           "nose_flange_fillet_r is wider than the nose-to-flange step it fills");
-
     module nose_flange_fillet() {
         // Quarter circle, tangent to the nose's vertical wall at the
         // bottom and tangent to the flange's horizontal underside at the
@@ -75,9 +78,14 @@ module nose_and_flange() {
         // between two DIFFERENT diameters the way this joint needs.
         n = 16;
         nose_r = nose_od_male / 2;
-        r = nose_flange_fillet_r;
+        // The only radius that reaches the flange's OD with nothing left
+        // over — see the comment above this module. Derived, not a
+        // separate tunable, so it can never drift out of sync with
+        // nose_od_male/flange_od the way a hardcoded value already did
+        // once.
+        r = flange_od / 2 - nose_r;
         cz = nose_len - r;      // arc center, height
-        cr = nose_r + r;        // arc center, radius
+        cr = nose_r + r;        // arc center, radius = flange_od/2
         arc_pts = [for (i = [0 : n])
             let (a = 180 - i * (90 / n))
             [cr + r * cos(a), cz + r * sin(a)]
@@ -92,13 +100,12 @@ module nose_and_flange() {
     }
 
     union() {
-        // Nose: plain cylinder. The step up to the flange (24.15 -> 30.65
-        // dia) needs no PRINT relief in the boss-down orientation this
-        // part currently prints in (see the orientation note further
-        // down) — printed that way, this transition shrinks going up,
-        // which never overhangs. The fillet above exists for stress
-        // concentration and general print cleanliness, not because this
-        // specific orientation would sag without it.
+        // Nose: plain cylinder. The fillet below turns the step up to
+        // the flange (24.15 -> 30.65 dia) into a widening ramp rather
+        // than a bare 90 deg overhang — needed for print quality in the
+        // NOSE-DOWN orientation this part currently prints in (see the
+        // orientation note further down), where this transition faces
+        // upward-and-outward as the print builds.
         cyl(d = nose_od_male, h = nose_len, anchor = BOTTOM,
             chamfer1 = nose_chamfer);
         nose_flange_fillet();
@@ -158,31 +165,31 @@ module nosepiece() {
     }
 }
 
-// Print orientation: BOSS DOWN, flipped from how it is modelled above.
-// The alternative (nose-down, i.e. as-modelled with no flip) puts the
-// nose/flange step's underside — a ~3.25mm-wide flat annulus, and the
-// exact face that seats against the focuser's drawtube end — hanging in
-// the air as an unsupported 90 deg overhang; sag there is sensor tilt at
-// the seating datum, not just cosmetic. Boss-down instead makes the taper
-// cone the self-supporting widening surface (identical situation to the
-// microscope carrier's own boss-down print, same taper_angle floor), and
-// costs nothing in back-focus since it is a rotation, not new material.
+// Print orientation: NOSE DOWN (as-modelled, no flip) — REVERSED from an
+// earlier boss-down choice, after the boss-down print of this same
+// nose_len=32 actually detached from the bed mid-print. That failure is
+// exactly what the "RE-EXAMINE THIS" note below used to warn about
+// before it happened: boss-down put a 32mm-tall column on an 11.88mm
+// boss footprint, which is a real adhesion/tip-over failure, not a
+// theoretical one anymore.
 //
-// RE-EXAMINE THIS at the current nose_len (32mm, up from the 8mm this
-// call was originally made against). Boss-down now spends most of the
-// part's height as a slender nose_len-tall column standing ON TOP of a
-// comparatively short, narrow base (boss+cone, ~16mm) instead of resting
-// on the bed — the opposite of a stable print, and worse the longer
-// nose_len gets. Nose-down would put that same 32mm down as a wide,
-// direct-to-bed cylinder instead, trading a small (~3.25mm radial, 2mm
-// tall) overhang for a much shorter, wider, more stable base. Whichever
-// orientation actually gets used, verify it against nose_len at print
-// time rather than trusting this comment's math — it was written for a
-// specific length that has already changed once.
+// Nose-down instead puts the nose flat on the bed for the first 32mm —
+// 24.15mm diameter, more than double the boss's footprint, and the tall
+// section sits low rather than perched on top. The trade this reverses:
+// nose-down turns the nose/flange step into a widening-upward transition
+// (an overhang, where boss-down had none). That's now the nose/flange
+// FILLET's job, above — it was added for stress concentration and print
+// cleanliness, but it also softens exactly this overhang into a ramp
+// instead of a hard 90 deg shelf, which boss-down never needed but
+// nose-down does. The two changes ended up complementary by accident,
+// not by plan.
+//
+// Whichever orientation gets used next, this is now based on one
+// success (v1, boss-down, nose_len=8) and one failure (v2, boss-down,
+// nose_len=32) — re-examine again if nose_len changes further, rather
+// than assuming nose-down is unconditionally right either.
 module nosepiece_printable() {
-    translate([0, 0, total_h])
-        rotate([180, 0, 0])
-            nosepiece();
+    nosepiece();
 }
 
 // boss_bore_d has to actually fit inside the thread root, or the boss is
