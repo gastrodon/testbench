@@ -9,7 +9,21 @@ pcb = [19, 55, 1.6];               // board footprint, mm
 holder_h = 10;                     // M12 holder tube height, mm
 holder_screw_d = 2;                // holder-to-PCB screw diameter, mm
 holder_screw_span = 20;            // spacing between the 2 screws, mm, straddling board center
-lens_thread_d = 11.88;             // M12 S-mount holder OD, mm
+// SETTLED BY PRINT. A coupon carrying both 11.88 and 11.68 went into the
+// camera's own holder: 11.88 threads in perfectly, 11.68 is loose enough
+// to slip. So print this thread at NOMINAL — no undersize compensation.
+//
+// That is worth knowing beyond this part. The received wisdom is that an
+// external printed thread comes out oversize by roughly an extrusion
+// width and needs shaving; on this printer, at this pitch, it does not.
+// Do not pre-shrink the next printed male thread by default.
+//
+// Caveat carried from the coupon's orientation: it printed flange-down
+// with the thread growing up into free air, so its lead-in was clean. The
+// carrier's boss will print tip-first ON the bed (see pcb_carrier.scad),
+// where the entering threads are the ones carrying elephant foot. The
+// DIAMETER answer transfers; the lead-in still needs relieving.
+lens_thread_d = 11.88;             // M12 S-mount holder OD, mm — confirmed
 lens_thread_pitch = 0.5;
 ring_light_r_max = 12;             // hard clearance cap near the objective base, mm
 

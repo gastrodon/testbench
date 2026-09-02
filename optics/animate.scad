@@ -1,9 +1,19 @@
 // Turntable + exploded-view storyboard, for producing a video.
 //
-//   openscad --animate 240 --imgsize=960,1080 -o /tmp/frames/f.png \
-//            optics/animate.scad
+//   openscad --animate 240 --imgsize=960,1080 \
+//            --camera=0,0,5,65,0,0,470 \
+//            -o /tmp/frames/f.png optics/animate.scad
 //   ffmpeg -framerate 30 -i /tmp/frames/f%05d.png -c:v libx264 \
 //          -pix_fmt yuv420p optics-assembly.mp4
+//
+// PASS AN EXPLICIT --camera. Without one OpenSCAD refits the view to each
+// frame's bounding box, so as the turntable spins and the silhouette
+// changes width the zoom breathes — the model appears to wobble. A fixed
+// distance removes it entirely.
+//
+// 470 is sized for the LARGEST state: fully exploded is 159.6mm tall
+// against 99.6 assembled. Framing for the assembled size clips the
+// exploded act.
 //
 // Kept separate from assembly.scad so that file stays a clean
 // Customizer surface. This one owns only the choreography; all the
@@ -75,10 +85,15 @@ carrier_z = carrier_z_home + travel;
 ex_carrier = explode * 60;
 ex_pinion  = explode * -38;   // knob-first, away from the assembly (see assembly.scad)
 
-// Spin about the optical axis, centred on the assembly's mid-height so
-// the model does not wander in frame.
+// Spin about the optical axis, centred so the model does not wander.
+//
+// The -ex_carrier/2 term is what keeps it still: the carrier lifts 60mm
+// when exploded, which raises the assembly's centre of extent by about
+// half that, so the whole model climbs out of frame mid-clip. Dropping by
+// half the explode offset cancels it, and the centre stays put across all
+// four acts instead of only being right at t=0.
 rotate([0, 0, turntable])
-translate([0, 0, -carrier_z_home / 2])
+translate([0, 0, -carrier_z_home / 2 - ex_carrier / 2])
 {
     color("SteelBlue")  base_mount();
 

@@ -20,7 +20,6 @@ include <lib/BOSL2/std.scad>
 include <lib/BOSL2/gears.scad>
 include <lib/BOSL2/threading.scad>
 
-use <m12_coupon.scad>
 use <clip_coupon.scad>
 use <focus_pinion.scad>
 use <label.scad>
@@ -32,36 +31,30 @@ $slop = 0.1;
 // and it stops being separable.
 label_gap = 7;
 
-// Part positions. The M12 pair goes at the back where it is widest; the
-// clip and pinion sit in front of it with room for a label under each.
-m12_at   = [0, 34];
-clip_at  = [-18, -14];
-pinion_at = [18, -14];
+// The M12 pair is GONE from this plate: settled by print, 11.88 threads
+// into the camera holder and 11.68 slips (see params.scad). Reprinting it
+// would answer a question that is closed. m12_coupon.scad stays on disk in
+// case the redesigned boss ever needs re-testing at a new orientation.
+//
+// Part positions.
+clip_at  = [-18, 0];
+pinion_at = [18, 0];
 
 module coupon_plate() {
-    // --- M12 thread coupon, two diameters -----------------------------
-    translate(m12_at) m12_coupon_pair();
-    // each boss labelled directly beneath itself, so there is no way to
-    // read the pair in the wrong order
-    for (i = [0 : m12_n() - 1])
-        translate([m12_at[0] + m12_label_x(i), m12_at[1] - 11 - label_gap, 0])
-            flat_label(m12_label(i), size = 5);
-
     // --- snap-clip coupon ---------------------------------------------
     // shifted by its own Y centre so clip_at means the same thing here as
     // it does for the other two: the middle of the part's footprint
     translate([clip_at[0], clip_at[1] - clip_y_centre(), 0])
         clip_coupon_printable();
     translate([clip_at[0], clip_at[1] - 17 - label_gap, 0])
-        flat_label("CLIP", size = 5);
+        flat_label("CLIP");
 
     // --- pinion + knob ------------------------------------------------
     translate(pinion_at) focus_pinion_printable();
     translate([pinion_at[0], pinion_at[1] - 14.2 - label_gap, 0])
-        flat_label("PINION", size = 5);
+        flat_label("PINION");
 }
 
 coupon_plate();
 
-echo(str("plate labels: ", m12_label(0), " / ", m12_label(1),
-         " / CLIP / PINION — printed flat on the sheet, one layer"));
+echo("plate labels: CLIP / PINION — flat on the sheet, one layer, single-pass strokes");

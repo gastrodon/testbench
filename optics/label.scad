@@ -46,7 +46,27 @@
 // out blank, that is the first place to look — the STL will still be
 // watertight and will still pass every geometry check.
 
-LABEL_FONT = "DejaVu Sans:style=Bold";
+// ONE EXTRUSION PASS PER STROKE. Not bold, and not merely "small" —
+// stroke width is what matters, and it is set by the font's weight times
+// its size, so those two are not independent choices.
+//
+// Measured stem widths (the plain vertical bar of "I"), against a 0.42mm
+// extrusion at a 0.4mm nozzle:
+//
+//   Bold        size 5     1.305mm   ~3 passes   <- what printed illegibly
+//   Book        size 5     0.685mm   1.6 passes  <- worst case: one bead
+//                                                   plus ragged gap-fill
+//   Book        size 3.1   0.425mm   1.0 pass    <- right stroke, tiny text
+//   ExtraLight  size 6     0.423mm   1.0 pass    <- right stroke, readable
+//
+// ExtraLight at 6 wins outright: the same single bead as Book at 3.1, at
+// nearly twice the cap height. A heavier face can only hit one pass by
+// shrinking the letters.
+//
+// 1.6 passes is the worst number to land on — the slicer lays one
+// perimeter and then tries to gap-fill the remainder, which blobs.
+// Prefer exactly 1.0, or failing that a clean 2.0.
+LABEL_FONT = "DejaVu Sans Light:style=ExtraLight";
 
 // One layer, and the layer is the whole part. Height must match the
 // profile's FIRST layer height (0.2mm here) — a label taller than that
@@ -54,10 +74,10 @@ LABEL_FONT = "DejaVu Sans:style=Bold";
 // thinner may miss the slice plane entirely and vanish.
 LABEL_LAYER_H = 0.2;
 
-// Bold, and big enough that every stroke is several extrusions wide.
-// These are read off the bed rather than in the hand, so they can afford
-// to be larger than something engraved on a part.
-module flat_label(txt, size = 6, h = LABEL_LAYER_H) {
+// Size and font weight are coupled through stroke width — see LABEL_FONT.
+// Changing `size` away from 6 changes the number of extrusion passes per
+// stroke, so re-measure if you do.
+module flat_label(txt, size = 6, h = LABEL_LAYER_H) {   // 6 => 0.42mm stroke
     linear_extrude(height = h)
         text(txt, size = size, font = LABEL_FONT,
              halign = "center", valign = "center");
@@ -66,4 +86,4 @@ module flat_label(txt, size = 6, h = LABEL_LAYER_H) {
 // Width a label will occupy, so a plate layout can keep it clear of the
 // brim around its neighbour rather than discovering the overlap in the
 // slicer.
-function label_width(txt, size = 6) = len(txt) * size * 0.72;
+function label_width(txt, size = 6) = len(txt) * size * 0.62;   // ExtraLight is narrower than Bold
