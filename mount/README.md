@@ -41,6 +41,8 @@ limiting factor — backlash and mount rigidity will be.
 | `assembly.scad` | the posed mechanism; the only file that knows how things move | — |
 | `pose.scad` | emits one body at its assembly pose, for the checker | — |
 | `check.py` | measured verification | — |
+| `animate.scad` / `animate.sh` | range-of-motion animation | — |
+| `views.sh` | orthographic review renders | — |
 
 ## How the telescope actually attaches
 
@@ -163,6 +165,17 @@ Not silently patched by nudging a number until the check went green.
 ./build.sh                       # render every part, --hardwarnings
 nix develop -c python3 check.py  # measured geometric verification
 ```
+
+```
+./animate.sh          # range-of-motion animation (mp4 + gif)
+```
+
+The animation is the one check a still render cannot do at all: a
+mechanism whose "moving" joint is actually clamped solid looks perfect in
+every static view and interferes with nothing. It runs the full designed
+altitude range on purpose, including the part where the tube's tail
+swings through the base — stopping at the last angle that looked tidy
+would hide the design's one open question.
 
 `check.py` checks **two conditions, not one**: no interference *and*
 sustained contact. "Nothing overlaps" is satisfied by two parts a metre

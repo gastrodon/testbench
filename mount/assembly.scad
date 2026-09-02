@@ -79,9 +79,15 @@ module belt_proxy(d_small, d_big, c) {
 
 // ---- the chain -----------------------------------------------------
 
-module assembly() {
-    assert(alt_angle >= alt_min_deg && alt_angle <= alt_max_deg,
-           str("assembly: alt_angle ", alt_angle, " is outside the design range ",
+// Takes its two joint angles as PARAMETERS, defaulting to the file-scope
+// values so -D still drives it. animate.scad needs to set them per frame,
+// and `use <>` imports modules but not the variables around them -- so a
+// module reading file-scope angles cannot be animated from outside without
+// duplicating the whole chain, which is how a second, drifting copy of the
+// kinematics gets born.
+module assembly(az = az_angle, alt = alt_angle) {
+    assert(alt >= alt_min_deg && alt <= alt_max_deg,
+           str("assembly: alt_angle ", alt, " is outside the design range ",
                alt_min_deg, "..", alt_max_deg));
 
     // GROUND.
@@ -97,7 +103,7 @@ module assembly() {
     // not at Z=0. Placing it at Z=0 buries it inside the base plate --
     // and every part still renders perfectly, which is exactly why this
     // had to be measured rather than looked at.
-    translate([0, 0, az_deck_z]) rotate([0, 0, az_angle]) {
+    translate([0, 0, az_deck_z]) rotate([0, 0, az]) {
         color("darkseagreen", 0.9) az_table();
 
         // Yoke rides rigidly on the table deck.
@@ -116,7 +122,7 @@ module assembly() {
                     translate([axis_centre_dist, alt_motor_seat_y, 0])
                         rotate([90, 0, 0]) nema17_proxy();
 
-                rotate([0, -alt_angle, 0]) {
+                rotate([0, -alt, 0]) {
                     // alt_rotor is modelled axis-along-Z; the altitude
                     // axis is +Y, so it is laid over here. This is the
                     // assembly transform -- it is NOT the part's print
