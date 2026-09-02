@@ -1,3 +1,4 @@
 *.hex
 /probe
 firmware/.gopls-goroot
+/result
