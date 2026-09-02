@@ -55,7 +55,7 @@ pinion_y = rack_y - gear_dist(mod = gear_mod, teeth1 = pinion_teeth,
                               teeth2 = 0, pressure_angle = gear_pressure_angle);
 // rack_slot_half comes from params.scad — the pinion's taper clearance
 // assert depends on the same number, so it cannot live here.
-arm_t = 3;
+// arm_t comes from params.scad — clip_coupon.scad sizes against it too
 arm_x = rack_slot_half + arm_t / 2;          // arm centreline
 bearing_d = shaft_d_frame + 0.35;            // running clearance on the shaft
 bearing_boss_d = shaft_d_frame + 7;   // follows the shaft, not a fixed 11

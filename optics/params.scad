@@ -137,6 +137,12 @@ knob_chamfer = 1.0;
 // the 6.7mm this allows. focus_pinion.scad asserts that, so the margin is
 // checked rather than remembered.
 rack_slot_half = gear_thickness / 2 + 3;
+
+// Yoke arm wall thickness. Here for the same reason as rack_slot_half:
+// clip_coupon.scad sizes its foot against this and had it written out as
+// a bare literal 3, so changing the mount would have left the coupon
+// measuring a part that no longer exists.
+arm_t = 3;
 guide_rod_d = 4;           // smooth guide rod diameter the PCB carrier rides on, mm
 // The pinion shaft is PRINTED as part of the pinion, not stock rod. It
 // was 4mm only because that is a stock size; nothing requires it now, so

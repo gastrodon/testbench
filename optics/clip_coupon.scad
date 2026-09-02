@@ -57,9 +57,10 @@ module clip_coupon() {
 }
 
 // objective_focus_mount.scad's internals are not exported by use<>, so
-// mirror the three numbers this file needs. They are derived the same
-// way there; if they drift, the foot is the wrong size and it shows.
-arm_t_pub = 3;
+// these are re-derived here — but every one of them now comes from
+// params.scad rather than being retyped. A bare literal here is the
+// rack_slot_half bug waiting to happen again.
+arm_t_pub = arm_t;   // from params.scad, shared with the mount
 rack_slot_half_pub = rack_slot_half;   // from params.scad
 arm_x_pub = rack_slot_half_pub + arm_t_pub / 2;
 snap_throat_pub = shaft_d_frame - 0.3;

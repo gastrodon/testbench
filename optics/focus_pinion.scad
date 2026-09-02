@@ -10,22 +10,24 @@
 // pushes the operating center distance out past the naive pitch radius.
 // Using the naive value buries the teeth too deep and the pair binds.
 //
-// No set screws. Both parts are a press fit on the axle, so the only
-// screw holes left in the whole build are the two that hold the PCB.
+// ONE PRINTED PART: knob, cove, shaft, gear and far stub, all rigid.
+// There is no axle and no set screw — the shaft is printed integral, so
+// nothing can slip on it.
 //
-// TWO SEPARATE PRINTED PARTS, joined by a length of 4mm rod:
+// It reads as two features because it is: the gear must sit beside the
+// rack, but a knob big enough to turn finely has a radius far larger than
+// the gap between the pinion axis and the carrier. A COAXIAL knob sweeps
+// straight through the carrier at every position along the shaft
+// (measured: 392 mm^3 of interference) — that was never fixable by moving
+// it. The knob therefore lives OUTBOARD, past the carrier's edge, on a
+// shaft long enough to clear it, which is how real microscope focus
+// blocks are built and what decouples knob diameter from any clearance
+// constraint. Knob size stays a free choice for tactile fineness.
 //
-//   focus_gear()  small, lives at the plate edge where the rack is
-//   focus_knob()  large, lives OUTBOARD past the plate's X edge
-//
-// They cannot be one piece. The gear must sit beside the rack, but a
-// knob big enough to turn finely has a radius far larger than the gap
-// between the pinion axis and the carrier plate — a coaxial knob sweeps
-// straight through the plate no matter how the pinion is positioned in
-// Z (measured: 392 mm^3 of interference). Putting the knob on a shaft
-// outboard of the plate is how real microscope focus blocks do it, and
-// it decouples knob diameter from any clearance constraint — so knob
-// size stays a free choice for tactile fineness.
+// This header used to describe two separately printed pieces joined by a
+// length of 4mm rod. That has not been true since the shaft became
+// integral, and params.scad and check.py both already said so — the file
+// doing the printing was the one carrying the wrong description.
 
 include <params.scad>
 include <lib/BOSL2/std.scad>

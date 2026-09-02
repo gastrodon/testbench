@@ -196,7 +196,6 @@
               # built from the SAME geometry as the real parts (clip_coupon
               # literally intersects base_mount), so a pass transfers
               # directly instead of only proving the coupon fits.
-              openscad -o $out/m12_coupon.stl build/m12_coupon.scad
               openscad -o $out/clip_coupon.stl build/clip_coupon.scad
 
               # The whole coupon build plate, parts and their on-sheet
@@ -204,15 +203,6 @@
               # concatenating STLs keeps the layout reviewable and means
               # a label can never drift away from the part it names.
               openscad -o $out/coupon_plate.stl build/coupon_plate.scad
-            '';
-
-          optics-calibration = pkgs.runCommand "testbench-optics-calibration"
-            { nativeBuildInputs = [ pkgs.openscad ]; }
-            ''
-              mkdir -p build $out
-              cp ${./optics/calibration.scad} build/calibration.scad
-              ln -s ${opticsLib} build/lib
-              openscad -o $out/calibration.stl -D '_large_nozzle=false' build/calibration.scad
             '';
 
           # Exposed directly for inspection/testing: `nix build .#firmware-goroot`
