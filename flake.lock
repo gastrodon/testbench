@@ -73,8 +73,7 @@
         "bosl2": "bosl2",
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs",
-        "pela-blocks": "pela-blocks",
-        "technic-scad": "technic-scad"
+        "pela-blocks": "pela-blocks"
       }
     },
     "systems": {
@@ -89,23 +88,6 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
-        "type": "github"
-      }
-    },
-    "technic-scad": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1784509404,
-        "narHash": "sha256-6qEX9A8fGgXioZ9YQKapa2Jj3nrHw0YqYmqiVGckI8g=",
-        "owner": "cfinke",
-        "repo": "Technic.scad",
-        "rev": "41f17a4696b582850097a2e3779348bc27c87f47",
-        "type": "github"
-      },
-      "original": {
-        "owner": "cfinke",
-        "repo": "Technic.scad",
-        "rev": "41f17a4696b582850097a2e3779348bc27c87f47",
         "type": "github"
       }
     }

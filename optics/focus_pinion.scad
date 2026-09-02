@@ -136,15 +136,34 @@ module focus_gear() {
 // Written innermost-first, OpenSCAD applies offset(+f) then offset(-f).
 module knob_profile() {
     arm_r = knob_d / 2 - knob_lobe_r;   // bulb centre distance
-    offset(r = -knob_fillet)
-        offset(r = knob_fillet)
-            union() {
-                circle(r = knob_hub_r, $fn = 96);
-                for (a = [0 : 120 : 359])
-                    rotate([0, 0, a])
-                        translate([arm_r, 0])
-                            circle(r = knob_lobe_r, $fn = 96);
-            }
+    R     = knob_valley_r;
+    // Centre of the valley arc: on the bisector between two bulbs, at the
+    // distance that puts it exactly (R + lobe_r) from each. That is the
+    // tangency condition, solved rather than eyeballed, so the arc runs
+    // into both bulbs smoothly at any radius.
+    rp = (arm_r + sqrt(4 * pow(R + knob_lobe_r, 2) - 3 * pow(arm_r, 2))) / 2;
+    // The three bulbs do not touch each other — centres 20.78 apart with
+    // radii of 8, so a 4.8mm gap. Something has to span it for the valley
+    // arc to cut anything at all; the arc floats clear of the material
+    // otherwise and removes nothing, which is exactly what happened on the
+    // first attempt (waist unchanged at 4.91).
+    //
+    // The web is sized to arm_r, not to the waist. At waist+0.5 its own
+    // rim poked half a millimetre past the arc wherever the valley did not
+    // reach, leaving a visible notch at each valley. At arm_r the rim is
+    // covered by a bulb at every angle the valleys do not cut, so it never
+    // becomes the outer boundary.
+    difference() {
+        union() {
+            circle(r = arm_r, $fn = 96);
+            for (a = [0 : 120 : 359])
+                rotate([0, 0, a])
+                    translate([arm_r, 0]) circle(r = knob_lobe_r, $fn = 96);
+        }
+        for (a = [60 : 120 : 359])
+            rotate([0, 0, a])
+                translate([rp, 0]) circle(r = R, $fn = 96);
+    }
 }
 
 // Chamfered by STACKED OFFSETS, not by linear_extrude(scale=).
@@ -193,7 +212,7 @@ COVE_SEGS = 48;
 module knob_cove() {
     // valley radius, not peak: starting at the peak would leave the
     // cove overhanging thin air across every scallop
-    kr = knob_hub_r - 0.5;   // inset: landing exactly
+    kr = knob_hub_r - 0.5;   // cove stays inside the narrowest section   // inset: landing exactly
          // on the valley makes the cove rim tangent to the knob surface,
          // which is contact without volume and loses manifoldness
     sr = shaft_d / 2;

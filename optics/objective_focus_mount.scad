@@ -86,22 +86,55 @@ pinion_y = rack_y - gear_dist(mod = gear_mod, teeth1 = pinion_teeth,
 arm_x = rack_slot_half + arm_t / 2;          // arm centreline
 bearing_d = shaft_d_frame + 0.35;            // running clearance on the shaft
 bearing_boss_d = shaft_d_frame + 7;   // follows the shaft, not a fixed 11
-// The strut is ONE straight member. It leaves the bearing boss and runs
-// down at a slight lean to land on the sleeve at foot_z — a little above
-// where the base ends, not at its corner. That gives a single obtuse
-// junction (~172 deg to the sleeve wall) instead of the old shape, which
-// ran parallel to the sleeve for 44mm and then turned, leaving a corner
-// plus a radial blend where it met the base.
-foot_z = 12;               // where the strut lands, just above the base end
+// The arm is the flat blade it has always been: one straight member from
+// the bearing boss down to a foot on the sleeve. Nothing about its width
+// or its lean changes. The ONE thing that changes is how it TERMINATES.
+// It used to stop on a flat horizontal face that ran into the tube,
+// leaving a hard corner right round the junction. Now the blade ends
+// higher up, and its bottom edge continues into the sleeve as an S —
+// vertical where it leaves the blade, vertical where it reaches the
+// wall, so it tapers out of the one and into the other with no crease at
+// either end.
+foot_z = 28;               // foot centre; the blade's flat bottom is 11 lower
 foot_h = 11;               // footprint along the tube axis
 foot_y_out = -13.5;        // outboard edge of the foot
-// Moving the arms outboard puts the foot on a thinner part of the round
-// wall: at x=8.5 the wall spans y=-8.04..-3.77, so a foot stopping at
-// -7.5 would catch only 0.54mm of it. -5.5 keeps 2.5mm of real overlap
-// and still clears the bore by 1.7mm.
+// The foot must overlap the sleeve WALL without reaching into the bore:
+// at x=+/-arm_x the bore surface is only y=-6.1, so a pad running further
+// in sits squarely in the carrier tube's path.
 foot_y_in = -5.5;
+// How far below the blade the tail reaches. This is the printability
+// dial, not a styling one: the tail has a fixed sideways distance to
+// cover (blade edge to sleeve wall), so a shorter drop makes its
+// underside steeper, and past about 45 deg from horizontal it stops
+// being self-supporting. Stretching it vertically is what keeps the
+// slope shallow.
+arm_tail_drop = 18;
+arm_tail_lead = 9;         // how long the tail holds the blade's lean
+// Land INSIDE the wall rather than exactly on it. A curve that arrives
+// tangent to the surface and stops there comes to a knife edge; burying
+// the endpoint slightly gives it real shared material to fuse into, and
+// because the tangent is vertical at that point the curve still crosses
+// the cylinder at a grazing angle, not a corner.
+arm_tail_bury = 0.6;
+arm_tail_steps = 32;
 bridge_drop = 11;          // bridge sits below the gear, back stays open
 bridge_d = 9;
+
+// The rack's real envelope in Y: teeth reach one addendum toward the
+// pinion, the backing sits behind the pitch line. The travel slot is cut
+// to exactly this plus clearance and no further — it used to start 3mm
+// outboard of the pitch line, 2mm more than anything needed, and that
+// excess sliced straight through the tie bridge, leaving the two arms
+// joined by nothing at all.
+rack_face_y = rack_y - gear_mod;               // tooth tips, pinion side
+rack_back_y = rack_y + rack_backing;           // backing, tube side
+slot_y0 = rack_face_y - clearance;
+slot_y1 = rack_back_y + clearance;
+
+// Bridge sits OUTBOARD of the slot rather than centred on the pinion
+// axis, so the rack passes in front of it instead of through it. Derived
+// from the rack so it cannot drift back into the travel path.
+bridge_y = slot_y0 - bridge_d / 2 - 0.3;
 // Snap-fit bearing: the bore opens upward through a throat slightly
 // narrower than the axle, so the gear+axle drops in from above and
 // clicks home instead of needing to be threaded through two closed
@@ -143,6 +176,88 @@ module base_floor_solid() {
 }
 
 
+// Cubic bezier, used to lay out the arm's tail in (y, z).
+function _bez2(p0, p1, p2, p3, t) =
+    let(u = 1 - t)
+    u*u*u*p0 + 3*u*u*t*p1 + 3*u*t*t*p2 + t*t*t*p3;
+
+// The blade's silhouette, drawn in (y, z) and extruded across x. Drawing
+// it as a profile rather than hulling solids is what makes the tail
+// possible at all: the S is a property of the bottom EDGE, and an edge is
+// something a 2D profile has and a hull of two lumps does not.
+module arm_profile() {
+    // The sleeve's outer surface, in y, at the blade's OUTER face. It has
+    // to be taken at the largest |x| the blade spans, not at its
+    // centreline: a cylinder's surface runs inboard as |x| grows, so
+    // aiming at the centreline's wall position would leave the outer face
+    // hanging in air outside the tube. Aiming at the outer face's instead
+    // buries the rest, which is the safe direction to be wrong in.
+    x_far  = arm_x + arm_t / 2;
+    y_wall = -sqrt(pow(sleeve_od / 2, 2) - x_far * x_far) + arm_tail_bury;
+    z_top  = foot_z - foot_h / 2;         // the blade's flat bottom
+    z_bot  = z_top - arm_tail_drop;       // where the S meets the wall
+    // The direction of the blade's own outboard silhouette — the external
+    // tangent from the foot's outboard corner to the bearing boss. The
+    // tail has to leave ALONG this, not across it. Leaving vertically (the
+    // obvious choice, since the sleeve wall is vertical) puts a re-entrant
+    // notch at the junction: the blade leans outboard as it rises, so a
+    // vertical tail followed by a leaning blade is a concave corner, which
+    // is exactly the crease this is meant to remove.
+    bo    = [pinion_y - foot_y_out, pinion_z - z_top];
+    beta  = asin((bearing_boss_d / 2) / norm(bo));
+    theta = atan2(bo[1], bo[0]) + beta;     // outboard tangent, pointing up
+    lean  = [-cos(theta), -sin(theta)];     // the same line, pointing down
+
+    // Tangent-continuous at the top (along the blade's edge) and vertical
+    // at the bottom (along the sleeve wall's generatrix, since at fixed x
+    // a cylinder's surface does not depend on z). All the turning happens
+    // in between, which is what makes it a curve rather than a corner.
+    p0 = [foot_y_out, z_top];
+    p1 = p0 + arm_tail_lead * lean;
+    p2 = [y_wall,     z_bot + arm_tail_drop * 0.45];
+    p3 = [y_wall,     z_bot];
+
+    union() {
+        // The blade itself — unchanged, straight boss-to-foot.
+        hull() {
+            translate([pinion_y, pinion_z]) circle(d = bearing_boss_d);
+            // Bottom corners SQUARE. The tail leaves the blade from the
+            // outboard bottom corner, so rounding that corner pulls the
+            // blade inboard and the tail then steps back out to full
+            // width — a notch, exactly the kind of crease this whole
+            // exercise is about removing. Top corners still break.
+            //          [inboard-top, outboard-top, outboard-bot, inboard-bot]
+            translate([(foot_y_out + foot_y_in) / 2, foot_z])
+                rect([foot_y_in - foot_y_out, foot_h],
+                     rounding = [2.5, 2.5, 0, 0]);
+        }
+        // The tail. Closed off along y=0, i.e. straight through the
+        // sleeve's axis — everything inboard of the wall is either solid
+        // sleeve already or gets removed when the bore is cut at the
+        // base_mount() level, so there is nothing to be gained by trying
+        // to trace the wall exactly here and a crescent to be lost by
+        // getting it slightly wrong.
+        polygon(concat(
+            [for (i = [0 : arm_tail_steps])
+                _bez2(p0, p1, p2, p3, i / arm_tail_steps)],
+            [[0, z_bot], [0, z_top + 0.5]]
+        ));
+    }
+}
+
+module arm_blade(s) {
+    // 2D (u, v) extruded along w, remapped so u->y, v->z, w->x: the blade
+    // lies in a plane of constant x, which linear_extrude cannot do on its
+    // own since it only ever extrudes along Z.
+    translate([s * arm_x, 0, 0])
+        multmatrix([[0, 0, 1, 0],
+                    [1, 0, 0, 0],
+                    [0, 1, 0, 0],
+                    [0, 0, 0, 1]])
+            linear_extrude(height = arm_t, center = true)
+                arm_profile();
+}
+
 module pinion_yoke_solid() {
     // OPEN BACK. The arms root into the sleeve and rise to the bearings
     // with nothing behind the gear — you can get a finger and a hex key
@@ -150,31 +265,13 @@ module pinion_yoke_solid() {
     // that used to span the back added stiffness but walled the
     // mechanism in; a low bridge UNDER the gear ties the arms instead,
     // which resists splay without blocking access.
-    for (s = [-1, 1]) {
-        translate([s * arm_x, 0, 0]) {
-            hull() {
-                // Long root, low on the sleeve. Extending the strut down
-                // like this lets it meet the base at a shallow, obtuse
-                // angle instead of standing off it in two right-angle
-                // steps — smoother load path and no overhang to bridge.
-                // Foot. It must overlap the sleeve WALL without reaching
-                // into the bore: at x=+/-arm_x the bore surface is only
-                // y=-6.1, so a pad running further in sits squarely in
-                // the carrier tube's path — a 3.1mm^3 collision the
-                // interference check caught once already.
-                translate([0, (foot_y_out + foot_y_in) / 2, foot_z])
-                    cuboid([arm_t, foot_y_in - foot_y_out, foot_h],
-                           rounding = 2.5, edges = "X");
-                translate([-arm_t / 2, pinion_y, pinion_z])
-                    rotate([0, 90, 0])
-                        cylinder(d = bearing_boss_d, h = arm_t);
-            }
-        }
-    }
+    for (s = [-1, 1])
+        arm_blade(s);
+
     // Bridge under the gear: ties the two arms without closing the back.
     hull() {
         for (s = [-1, 1])
-            translate([s * arm_x, pinion_y, pinion_z - bridge_drop])
+            translate([s * arm_x, bridge_y, pinion_z - bridge_drop])
                 rotate([0, 90, 0])
                     cylinder(d = bridge_d, h = arm_t, center = true);
     }
@@ -184,8 +281,8 @@ module pinion_yoke_cuts() {
     // Rack travel slot: the swept volume of the rack across the whole
     // focus range, plus clearance. Cutting the SWEPT volume rather than
     // the rack's home position is the point — the rack moves 20mm.
-    translate([-rack_slot_half, rack_y - 3, sleeve_len - 4])
-        cube([2 * rack_slot_half, rack_backing + 5, 70]);
+    translate([-rack_slot_half, slot_y0, sleeve_len - 4])
+        cube([2 * rack_slot_half, slot_y1 - slot_y0, 70]);
 
     // Gear pocket, so the pinion can spin without touching the web
     translate([-rack_slot_half, pinion_y, pinion_z])
@@ -252,8 +349,14 @@ module base_mount() {
         // sleeve wall, so the wall is open on that arc from the rack's
         // lowest reach upward. Everything else stays solid and carries
         // the bearing load — which is the whole point of raising it.
-        translate([-fin_slot_half, rack_y - 12, fin_slot_z0])
-            cube([2 * fin_slot_half, 12 + sleeve_od / 2,
+        // Runs from outside the wall all the way to the axis. Sizing it
+        // from the bore RADIUS leaves a crescent — the bore is a
+        // cylinder, so at x=3.5 its wall sits at y=-8.62, not -9.3, and a
+        // slot stopping at -8.8 left up to 0.2mm of wall standing in the
+        // fin's path: 7.6mm^3 of interference, invisible in every render
+        // and caught only by the pairwise check.
+        translate([-fin_slot_half, -(sleeve_od / 2 + 0.5), fin_slot_z0])
+            cube([2 * fin_slot_half, sleeve_od / 2 + 0.5,
                   sleeve_tall_len - fin_slot_z0 + 2]);
 
         // Objective thread + its clear optical path, subtracted LAST so

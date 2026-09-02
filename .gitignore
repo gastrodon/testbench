@@ -14,3 +14,10 @@ result-*
 !.claude/skills/**
 !.claude/workflows/
 !.claude/workflows/**
+
+# ...but not agent worktrees, which the negation above would otherwise
+# pull back in. Last match wins, so this has to follow it.
+.claude/worktrees/
+
+/build_native/
+optics/tmp*.scad

@@ -147,7 +147,25 @@ knob_cove_pow = 2.2;
 // annulus, which is enough for both.
 knob_lobe_r = 8;      // radius of each round bulb
 knob_hub_r  = 5;      // central hub the bulbs join through
-knob_fillet = 1.5;    // concave blend where a bulb meets the hub
+// VALLEY ARC, not a closing radius. The valley between two bulbs is now
+// an explicit arc TANGENT TO BOTH of them — the lobe profile inverted and
+// used to bridge the gap. A morphological closing could only ever give a
+// small radius here (anything larger bridged the gap outright and erased
+// the neck), so the valley read as two tangent points with a scrap of arc
+// between them: an acute corner-pair rather than a rolling valley.
+//
+// The arc's centre sits where it is (R + lobe_r) from both bulb centres,
+// which is what makes it tangent rather than merely nearby. Radius trades
+// directly against depth, measured:
+//
+//     R 3.0  waist  6.61     R 6.0  waist  9.38
+//     R 4.0  waist  8.00     R 8.0  waist 10.17
+//     R 5.0  waist  8.81    (old closing 1.5 gave 5.00)
+//
+// 8 is the lobe radius itself — the profile literally inverted, as
+// sketched. It is the roundest and the shallowest; drop it toward 4 if
+// the neck matters more than the roll.
+knob_valley_r = 8;
 
 // Break the knob's outer edges. Bottom chamfer also gives the first layer
 // a smaller footprint that grows, which is the usual dodge for elephant
@@ -205,7 +223,18 @@ technic_pin_spacing = 8;   // = technic_beam_hole_spacing in Technic.scad
 obj_f = 9;                         // focal length, mm; plausible range 8-14
 
 // chosen
-tube_len_nominal = 80;             // mm, starting point pending empirical focus test
+// THE FOCUS STACK. Sensor height above the base floor is
+//     tube_len_nominal + holder_h + taper_h + boss_thread_len
+// so lengthening the thread has to be paid for out of the tube or the
+// whole focus range moves with it. That trade is encoded here rather than
+// left to whoever edits next: fix the SUM, derive the tube from it.
+//
+// The M12 thread is deliberately long — the camera's holder is recessed,
+// so a short boss cannot reach far enough in to start. 21mm is 42 turns
+// at 0.5 pitch, far more than it needs to hold, and the excess is reach.
+carrier_stack = 87;                // tube + thread, held constant
+boss_thread_len = 21;              // was 7; the camera's hole is recessed
+tube_len_nominal = carrier_stack - boss_thread_len;
 focus_travel = 20;                 // mm of adjustment range to build in
 
 // --- shared interface dimensions --------------------------------------
@@ -223,7 +252,10 @@ focus_travel = 20;                 // mm of adjustment range to build in
 // sensor-to-objective distance because the sensor end moves and the
 // objective does not.
 carrier_tube_od = 18;              // = base sleeve bore mate
-carrier_tube_len = 80;
+// The tube IS the nominal length — these were two parameters holding the
+// same 80, which had to stay equal for the tube's lower end to keep its
+// height above the floor. Derived now, so they cannot drift apart.
+carrier_tube_len = tube_len_nominal;
 carrier_face_w = 34;               // PCB mounting bar, X (spans the screws)
 carrier_face_d = 21;               // Y — wide enough to carry the tube
 carrier_face_t = 2.6;

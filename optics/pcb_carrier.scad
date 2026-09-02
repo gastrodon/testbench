@@ -38,7 +38,9 @@ include <lib/BOSL2/threading.scad>   // threaded_rod() for the M12 boss
 // Length: holder_h is the holder's full 10mm depth, but the boss does not
 // need all of it and a shorter thread is a shorter tip-down print. 7mm is
 // 14 turns at 0.5 pitch, far more than enough to seat.
-boss_thread_len = 7;
+// boss_thread_len comes from params.scad — it trades directly against
+// tube_len_nominal to hold the focus range fixed, so the two cannot live
+// in different files.
 
 // LEAD-IN RELIEF. This thread prints TIP-FIRST on the bed — the part goes
 // face-down so the boss's free end is the first layer — which means the
@@ -218,9 +220,18 @@ module pcb_carrier() {
 // The flip lives here rather than in the build so the offset uses this
 // file's own boss height instead of a magic number copied elsewhere.
 module pcb_carrier_printable() {
-    translate([0, 0, boss_total])
-        rotate([180, 0, 0])
-            pcb_carrier();
+    // AS MODELLED — thread UP, tube mouth on the bed. No flip.
+    //
+    // This is the opposite of how it printed before, and it trades one
+    // risk for another deliberately. Thread-up means the M12 threads,
+    // including the lead-in that has to start the screw, print in free
+    // air with no elephant foot — which matters more now the thread is
+    // 21mm and its whole job is reaching into a recessed hole. The cost
+    // is that the tube's open mouth becomes the first layer: an 18/13.2
+    // annulus, about 118mm^2, carrying a 90mm tower. That wants a brim,
+    // and it puts first-layer squish on the 0.3mm/side bearing surface.
+    translate([0, 0, tube_len])
+        pcb_carrier();
 }
 
 pcb_carrier();

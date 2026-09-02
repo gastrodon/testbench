@@ -142,15 +142,6 @@
           optics-stl = pkgs.runCommand "testbench-optics-stl"
             {
               nativeBuildInputs = [ pkgs.openscad ];
-              # The coupons label themselves with text(), and text() with
-              # no font available renders NOTHING — a warning on stderr,
-              # exit 0, and a watertight STL with no label on it. The
-              # sandbox has no system fontconfig, so the font has to be an
-              # explicit input or every label silently disappears in the
-              # one build that is supposed to be reproducible.
-              FONTCONFIG_FILE = pkgs.makeFontsConf {
-                fontDirectories = [ pkgs.dejavu_fonts ];
-              };
             }
             ''
               mkdir -p build $out
@@ -182,20 +173,7 @@
               emit pinion focus_pinion.scad "focus_pinion_printable();"
 
 
-              # test pieces
-              openscad -o $out/slide_coupon.stl build/slide_coupon.scad
 
-              # Coupons for the two open tolerance questions. Both are
-              # built from the SAME geometry as the real parts (clip_coupon
-              # literally intersects base_mount), so a pass transfers
-              # directly instead of only proving the coupon fits.
-              openscad -o $out/clip_coupon.stl build/clip_coupon.scad
-
-              # The whole coupon build plate, parts and their on-sheet
-              # labels arranged together. Slicing this rather than
-              # concatenating STLs keeps the layout reviewable and means
-              # a label can never drift away from the part it names.
-              openscad -o $out/coupon_plate.stl build/coupon_plate.scad
             '';
 
           # Exposed directly for inspection/testing: `nix build .#firmware-goroot`

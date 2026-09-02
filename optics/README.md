@@ -48,10 +48,9 @@ a slot half-width once existed under three different names in three
 files, and a safety check ended up validating its own private copy
 instead of the real one.
 
-Coupons (`m12_coupon.scad`, `clip_coupon.scad`, `slide_coupon.scad`,
-`label_test.scad`) are small standalone prints that settle one open
-tolerance each and live alongside the parts they test, arranged for the
-bed together in `coupon_plate.scad`. `assembly.scad` (interactive
+Test coupons have all been retired — each settled its question and was
+deleted rather than kept as archaeology (the findings live in
+`params.scad`, at the values they produced). `assembly.scad` (interactive
 Customizer view), `check.py` (geometric proof), and `animate.scad`
 (video choreography) are three separate concerns reading the same parts
 via `use<>` — kept apart deliberately rather than merged, since each has
@@ -99,8 +98,14 @@ Settled by test print, recorded in `params.scad`:
   cleanly; 11.68 (0.2 under, the usual bulge-compensation guess) is loose
   enough to slip.
 - Labels printed flat on the build sheet beside a part, one layer, no
-  brim: **DejaVu Sans ExtraLight at size 5**, printed with `z_offset`
-  0.05 (pressing into the sheet), bed 40C and a 4mm/s first layer.
+  brim: **DejaVu Sans ExtraLight at size 5** — a measured 0.35mm stem,
+  which is 0.8 of one 0.42mm extrusion — printed with `z_offset` 0.05
+  (pressing into the sheet), bed 40C and a 4mm/s first layer. Measured
+  stems for reference, since font weight and size together set stroke
+  width and neither alone is the dial: Bold@5 1.305mm (~3 passes, the
+  original failure), Book@5 0.685 (1.6, the worst case — one bead plus
+  ragged gap-fill), Book@3.1 0.425 (1.0 but tiny), ExtraLight@6 0.423
+  (1.0), ExtraLight@5 0.35 (0.8, and the one that read best).
   Settled by a strip carrying six font/size candidates side by side.
   Two results worth keeping: a bed at 60C holds PLA at its glass
   transition, which is fine for a solid part but leaves a single-bead
@@ -112,10 +117,11 @@ Settled by test print, recorded in `params.scad`:
 
 Still open — nothing has printed far enough to answer these:
 
-- The snap-fit throat that lets the pinion drop into its yoke bearings
-  (`clip_coupon.scad`).
-- The tube-in-sleeve sliding fit, the mechanism's one bearing
-  (`slide_coupon.scad`).
+- The snap-fit throat that lets the pinion drop into its yoke bearings.
+  Its coupon is gone; the real `base_mount` carries the feature and is
+  the test now.
+- The tube-in-sleeve sliding fit, the mechanism's one bearing. Likewise
+  answered by printing the real pair rather than a stand-in.
 - Tube length: `tube_len_nominal` in `params.scad` is a starting point
   derived from an *assumed* objective focal length (8-14mm plausible
   range), not a measured one.
