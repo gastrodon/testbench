@@ -45,15 +45,63 @@ total_h    = boss_z0 + boss_thread_len;
 // tracing which edge is physically the leading one, not by any render.
 nose_chamfer = 1.0;
 
+// Shaft-to-shoulder fillet blending the nose's outer wall into the
+// flange's underside, replacing what was a bare 90 deg step. Two
+// independent reasons this earned a radius rather than staying sharp:
+// a cold-read of the first print's renders flagged the step as a stress
+// riser / delamination point with nothing wrong about the observation,
+// and a hard step prints less cleanly than a curve regardless of which
+// side of it ends up an overhang in a given orientation. Radius is set
+// to flange_t (the flange's own depth, the "non-45deg" section as
+// opposed to the taper above it) rather than an arbitrary value, so it
+// scales with the part instead of needing its own tuning.
+nose_flange_fillet_r = flange_t;
+
 module nose_and_flange() {
+    // Radial gap the fillet has to cross.
+    fillet_gap = flange_od / 2 - nose_od_male / 2;
+    assert(nose_flange_fillet_r <= fillet_gap,
+           "nose_flange_fillet_r is wider than the nose-to-flange step it fills");
+
+    module nose_flange_fillet() {
+        // Quarter circle, tangent to the nose's vertical wall at the
+        // bottom and tangent to the flange's horizontal underside at the
+        // top — the standard blend, not a semicircle: two tangent points
+        // 90 degrees apart on the same circle are always a quarter turn
+        // apart, whatever the radius. Built as rotate_extrude() of a
+        // polygon (arc + two straight closing edges) rather than a cyl()
+        // rounding parameter, because BOSL2's cyl() rounding blends a
+        // cylinder's own edge into its own cap — it has no way to blend
+        // between two DIFFERENT diameters the way this joint needs.
+        n = 16;
+        nose_r = nose_od_male / 2;
+        r = nose_flange_fillet_r;
+        cz = nose_len - r;      // arc center, height
+        cr = nose_r + r;        // arc center, radius
+        arc_pts = [for (i = [0 : n])
+            let (a = 180 - i * (90 / n))
+            [cr + r * cos(a), cz + r * sin(a)]
+        ];
+        // arc_pts runs from (nose_r, cz) [tangent to the nose wall] to
+        // (nose_r + r, nose_len) [tangent to the flange underside];
+        // closing back through (nose_r, nose_len) — the corner point
+        // itself — traces the small wedge the fillet actually fills.
+        // polygon() closes the loop back to the first point on its own.
+        rotate_extrude($fn = $fn)
+            polygon(concat(arc_pts, [[nose_r, nose_len]]));
+    }
+
     union() {
         // Nose: plain cylinder. The step up to the flange (24.15 -> 30.65
-        // dia) needs no relief of its own: printed boss-down (see the
-        // print-orientation note at the bottom of this file), that step
-        // is a downward-shrinking transition in print space, not an
-        // overhang, so nothing sags there.
+        // dia) needs no PRINT relief in the boss-down orientation this
+        // part currently prints in (see the orientation note further
+        // down) — printed that way, this transition shrinks going up,
+        // which never overhangs. The fillet above exists for stress
+        // concentration and general print cleanliness, not because this
+        // specific orientation would sag without it.
         cyl(d = nose_od_male, h = nose_len, anchor = BOTTOM,
             chamfer1 = nose_chamfer);
+        nose_flange_fillet();
         // Flange: sits directly on top of the nose.
         translate([0, 0, flange_z0])
             cyl(d = flange_od, h = flange_t, anchor = BOTTOM);
