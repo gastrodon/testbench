@@ -110,13 +110,23 @@ foot_y_in = -5.5;
 // slope shallow.
 arm_tail_drop = 18;
 arm_tail_lead = 9;         // how long the tail holds the blade's lean
-// Land INSIDE the wall rather than exactly on it. A curve that arrives
-// tangent to the surface and stops there comes to a knife edge; burying
-// the endpoint slightly gives it real shared material to fuse into, and
-// because the tangent is vertical at that point the curve still crosses
-// the cylinder at a grazing angle, not a corner.
+// Land just inside the wall rather than exactly on it, so the tip has
+// shared material to fuse into. Only just, though: burying deeper does
+// not soften anything, it retreats the tail inboard until the visible
+// part is a wedge clinging to the blade's outer face. Measured — 2.5 and
+// 4.0 both look worse than 0.6, not better.
 arm_tail_bury = 0.6;
 arm_tail_steps = 32;
+arm_z_top = foot_z - foot_h / 2;          // the blade's flat bottom
+arm_z_bot = arm_z_top - arm_tail_drop;    // where the tail meets the wall
+// The tail also has to thin ACROSS the blade, not only within its
+// silhouette. A flat blade cannot fade evenly into a round tube from a
+// constant-thickness profile: the wall sits at a different y for every
+// x, so an edge tangent at the blade's outer face is already buried at
+// its inner face, and what is left protruding ends in a cusp. Tapering
+// the thickness too means the tail runs out in all three directions at
+// once, which is what actually reads as a fade.
+arm_tail_tip_t = 0.9;
 bridge_drop = 11;          // bridge sits below the gear, back stays open
 bridge_d = 9;
 
@@ -185,7 +195,7 @@ function _bez2(p0, p1, p2, p3, t) =
 // it as a profile rather than hulling solids is what makes the tail
 // possible at all: the S is a property of the bottom EDGE, and an edge is
 // something a 2D profile has and a hull of two lumps does not.
-module arm_profile() {
+module arm_profile(part) {
     // The sleeve's outer surface, in y, at the blade's OUTER face. It has
     // to be taken at the largest |x| the blade spans, not at its
     // centreline: a cylinder's surface runs inboard as |x| grows, so
@@ -194,8 +204,8 @@ module arm_profile() {
     // buries the rest, which is the safe direction to be wrong in.
     x_far  = arm_x + arm_t / 2;
     y_wall = -sqrt(pow(sleeve_od / 2, 2) - x_far * x_far) + arm_tail_bury;
-    z_top  = foot_z - foot_h / 2;         // the blade's flat bottom
-    z_bot  = z_top - arm_tail_drop;       // where the S meets the wall
+    z_top  = arm_z_top;
+    z_bot  = arm_z_bot;
     // The direction of the blade's own outboard silhouette — the external
     // tangent from the foot's outboard corner to the bearing boss. The
     // tail has to leave ALONG this, not across it. Leaving vertically (the
@@ -217,7 +227,9 @@ module arm_profile() {
     p2 = [y_wall,     z_bot + arm_tail_drop * 0.45];
     p3 = [y_wall,     z_bot];
 
-    union() {
+    // Drawn in two parts because they get extruded differently: the blade
+    // keeps its full thickness, the tail is tapered across it.
+    if (part == "blade")
         // The blade itself — unchanged, straight boss-to-foot.
         hull() {
             translate([pinion_y, pinion_z]) circle(d = bearing_boss_d);
@@ -231,31 +243,49 @@ module arm_profile() {
                 rect([foot_y_in - foot_y_out, foot_h],
                      rounding = [2.5, 2.5, 0, 0]);
         }
-        // The tail. Closed off along y=0, i.e. straight through the
-        // sleeve's axis — everything inboard of the wall is either solid
-        // sleeve already or gets removed when the bore is cut at the
-        // base_mount() level, so there is nothing to be gained by trying
-        // to trace the wall exactly here and a crescent to be lost by
-        // getting it slightly wrong.
+
+    if (part == "tail")
+        // Closed off along y=0, i.e. straight through the sleeve's axis —
+        // everything inboard of the wall is either solid sleeve already or
+        // gets removed when the bore is cut at the base_mount() level, so
+        // there is nothing to be gained by trying to trace the wall exactly
+        // here and a crescent to be lost by getting it slightly wrong.
         polygon(concat(
             [for (i = [0 : arm_tail_steps])
                 _bez2(p0, p1, p2, p3, i / arm_tail_steps)],
             [[0, z_bot], [0, z_top + 0.5]]
         ));
-    }
+}
+
+// 2D (u, v) extruded along w, remapped so u->y, v->z, w->x: the blade lies
+// in a plane of constant x, which linear_extrude cannot do on its own
+// since it only ever extrudes along Z.
+module _across_x() {
+    multmatrix([[0, 0, 1, 0],
+                [1, 0, 0, 0],
+                [0, 1, 0, 0],
+                [0, 0, 0, 1]])
+        linear_extrude(height = arm_t, center = true)
+            children();
 }
 
 module arm_blade(s) {
-    // 2D (u, v) extruded along w, remapped so u->y, v->z, w->x: the blade
-    // lies in a plane of constant x, which linear_extrude cannot do on its
-    // own since it only ever extrudes along Z.
-    translate([s * arm_x, 0, 0])
-        multmatrix([[0, 0, 1, 0],
-                    [1, 0, 0, 0],
-                    [0, 1, 0, 0],
-                    [0, 0, 0, 1]])
-            linear_extrude(height = arm_t, center = true)
-                arm_profile();
+    translate([s * arm_x, 0, 0]) {
+        _across_x() arm_profile("blade");
+
+        // The tail, thinned across the blade as it descends. Full
+        // thickness where it leaves the blade so there is no step, down to
+        // a hair where it reaches the wall.
+        intersection() {
+            _across_x() arm_profile("tail");
+            hull() {
+                translate([0, 0, arm_z_top + 0.5])
+                    cube([arm_t, 80, 0.02], center = true);
+                translate([0, 0, arm_z_bot])
+                    cube([arm_tail_tip_t, 80, 0.02], center = true);
+            }
+        }
+    }
 }
 
 module pinion_yoke_solid() {
