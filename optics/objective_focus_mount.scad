@@ -5,7 +5,12 @@
 //   * the 150x objective cell, on a real 9mm printed thread in the floor
 //   * the sleeve bore the camera carrier's tube slides in (the bearing)
 //   * the pinion yoke, holding the axle in double shear
-//   * a LEGO Technic pin breakout for provisional structure
+//
+// The LEGO Technic pin breakout that used to hang off the side is gone —
+// pins, pad and bolt. It was provisional structure and never earned its
+// keep: it was the only real overhang on the part, the only feature
+// needing a second printed piece and a screw, and nothing was mounted to
+// it. How this assembly attaches to anything is an open question again.
 //
 // Focus works because THIS body stays put while pcb_carrier.scad travels,
 // changing the sensor-to-objective distance. The objective used to live on
@@ -24,7 +29,6 @@ include <lib/BOSL2/threading.scad>
 // because malformed geometry that happens to miss everything looks
 // exactly like correct geometry to a clearance test.
 include <lib/BOSL2/gears.scad>
-include <lib/Technic.scad/Technic.scad>
 
 $slop = 0.1; // FDM print clearance for the internal thread mask, mm; tune per-printer
 
@@ -36,10 +40,33 @@ floor_t = obj_bore_depth + 1.5;    // base floor carrying the objective thread
 // tube wall itself. The rack's backing sits at y=-10.875, inside the
 // sleeve's 11.7mm outer radius, so a taller tube WOULD have to be slit.
 sleeve_len = 56;
+
+// The sleeve rises FURTHER on every part of its circumference the rack
+// does not pass through.
+//
+// Why: the pinion drives the rack along Z, and the rack sits rack_y =
+// -15.6mm off the tube axis. A driving force at that offset is a moment
+// about X — it cocks the carrier forward in the bore rather than spinning
+// it. A journal bearing resists cocking by its LENGTH, so the fix is more
+// engaged sleeve, and the only thing that limited it was the rack.
+//
+// So it is not limited by the rack any more: the majority arc runs up to
+// sleeve_tall_len, and a slot the width of the rack fin is cut through
+// the rest. Engagement at focus home goes from 49.25mm to 73.25mm, half
+// again as much, for a slot in a wall that was doing nothing there.
+//
+// The ceiling is the carrier's own tube top, which sits at carrier_z_home
+// when focus is at home — the sleeve must not touch the taper that
+// carries it into the thread.
+sleeve_tall_len = carrier_z_home - 10;
+
+// The travel slot. Wide enough for the fin plus running clearance, open
+// from the rack's lowest reach upward.
+fin_slot_half = gear_thickness / 2 + clearance;
+fin_slot_z0 = rack_z_min - 2;
 sleeve_id = carrier_tube_od + 2 * clearance;   // the moving tube's bearing
 sleeve_od = sleeve_id + 2 * wall;
 
-breakout_z = 20;   // explicit, not sleeve_len/2 — the sleeve length changed once
 
 // --- pinion yoke ------------------------------------------------------
 // The frame. Two arms rise from the sleeve and straddle the rack, so the
@@ -115,48 +142,6 @@ module base_floor_solid() {
     cyl(d = sleeve_od, h = floor_t, anchor = BOTTOM, chamfer1 = 0.8);
 }
 
-// --- Technic adapter mounting pad -------------------------------------
-// The pins themselves now live on technic_adapter.scad, which bolts on
-// here. All this part provides is a flat, square pad with a pilot hole —
-// so the adapter's flat face has something true to sit against instead
-// of a round tube.
-pad_t = 4.0;                     // pad stands off the sleeve wall
-pad_face_w = technic_pin_spacing + 14;
-pad_face_h = 15;
-m3_pilot = 2.6;                  // self-tapping M3 bites into this
-m3_pilot_depth = 8;
-
-module technic_breakout_solid() {
-    // Flat pad, blended into the round wall with a hull so there is no
-    // abrupt section change at the joint.
-    pad_x = sleeve_od / 2 + pad_t;
-    hull() {
-        // saddle footprint on the sleeve
-        intersection() {
-            difference() {
-                cylinder(d = sleeve_od + 1.0, h = pad_face_h + 8,
-                         center = true);
-                translate([0, 0, -pad_face_h])
-                    cylinder(d = sleeve_id, h = pad_face_h * 4, center = true);
-            }
-            translate([sleeve_od / 4, 0, 0])
-                cube([sleeve_od / 2, pad_face_w, pad_face_h + 8],
-                     center = true);
-        }
-        // the flat face itself
-        translate([pad_x - 1.2, 0, 0])
-            cuboid([2.4, pad_face_w, pad_face_h], rounding = 2.5,
-                   edges = "X");
-    }
-}
-
-module technic_pad_cuts() {
-    // Pilot for the adapter's M3, drilled into the flat face
-    translate([sleeve_od / 2 + pad_t + 1, 0, 0])
-        rotate([0, 90, 0])
-            translate([0, 0, -m3_pilot_depth - 1])
-                cylinder(d = m3_pilot, h = m3_pilot_depth + 1.2);
-}
 
 module pinion_yoke_solid() {
     // OPEN BACK. The arms root into the sleeve and rise to the bearings
@@ -248,11 +233,9 @@ module base_mount() {
             // Chamfered rims top and bottom. A square bottom edge is
             // where elephant foot shows worst; a square top rim is what
             // the carrier tube has to be guided past on assembly.
-            cyl(d = sleeve_od, h = sleeve_len, anchor = BOTTOM,
+            cyl(d = sleeve_od, h = sleeve_tall_len, anchor = BOTTOM,
                 chamfer1 = 0.8, chamfer2 = 1.2);
             base_floor_solid();
-            translate([0, 0, breakout_z])
-                technic_breakout_solid();
             pinion_yoke_solid();
         }
 
@@ -260,19 +243,24 @@ module base_mount() {
         // threaded opening. No clamp slot or clamp screw any more: the
         // carrier is positioned by the rack and pinion, not pinched.
         translate([0, 0, floor_t])
-            cylinder(d = sleeve_id, h = sleeve_len);
+            cylinder(d = sleeve_id, h = sleeve_tall_len);
         // lead-in so the carrier tube self-centres instead of catching
-        translate([0, 0, sleeve_len - 1.6])
+        translate([0, 0, sleeve_tall_len - 1.6])
             cylinder(d1 = sleeve_id, d2 = sleeve_id + 3.2, h = 1.7);
+
+        // TRAVEL SLOT. The rack and the fin behind it sweep through the
+        // sleeve wall, so the wall is open on that arc from the rack's
+        // lowest reach upward. Everything else stays solid and carries
+        // the bearing load — which is the whole point of raising it.
+        translate([-fin_slot_half, rack_y - 12, fin_slot_z0])
+            cube([2 * fin_slot_half, 12 + sleeve_od / 2,
+                  sleeve_tall_len - fin_slot_z0 + 2]);
 
         // Objective thread + its clear optical path, subtracted LAST so
         // nothing unioned above can fill it back in.
         objective_thread_bore();
 
         pinion_yoke_cuts();
-
-        translate([0, 0, breakout_z])
-            technic_pad_cuts();
     }
 }
 

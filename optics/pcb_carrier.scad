@@ -28,7 +28,6 @@ include <lib/BOSL2/std.scad>
 include <lib/BOSL2/gears.scad>
 include <lib/BOSL2/threading.scad>   // threaded_rod() for the M12 boss
 
-face_t = carrier_face_t;
 
 // --- M12 boss ----------------------------------------------------------
 //
@@ -59,12 +58,23 @@ boss_thread_len = 7;
 boss_lead_len = 1.0;
 boss_lead_taper = 1.2;    // radial cut-back at the very tip
 
-// Overall height of the face+boss stack, above the face's underside.
-// FILE SCOPE because pcb_carrier_printable() needs it too — it used to
-// say face_t + boss_h, and when boss_h was deleted with the screw bosses
-// that became undef, the translate silently did nothing, and the part
-// rendered upside down with most of it below the bed. No error.
-boss_total = face_t + boss_thread_len;
+// The cone that carries the tube up into the thread. Radius has to fall
+// from the tube's 9mm to the thread's 5.94mm, so:
+// carrier_tube_od from params, NOT the local tube_od alias — that is
+// assigned further down this file, and OpenSCAD evaluates in order, so
+// using it here yields undef. It did: taper_h went undef, the cone
+// vanished, and the part still rendered watertight at the wrong height
+// with the radius stepping straight from tube to thread. Read from the
+// source of truth and the ordering cannot bite.
+taper_dr = (carrier_tube_od - lens_thread_d) / 2;
+taper_h  = taper_dr * tan(carrier_taper_angle);
+
+// Everything above the tube's top, which is z=0. FILE SCOPE because
+// pcb_carrier_printable() needs it too — it once said face_t + boss_h,
+// and when boss_h was deleted with the screw bosses that became undef,
+// the translate silently did nothing, and the part rendered upside down
+// with most of it below the bed. No error.
+boss_total = taper_h + boss_thread_len;
 
 // The old two-screw bosses are gone with the holes. Worth recording why
 // beyond "the thread is better": printed face-down they made the first
@@ -94,36 +104,33 @@ boss_bore_d = 9;
 // Rack runs the travel axis on the -Y side, standing off the tube on a
 // fin. rack_y comes from params.scad — the base's pinion bearings must
 // agree with it.
-rack_circ_pitch = PI * gear_mod;
-rack_len_min = focus_travel + 2 * rack_engage_margin;
-rack_teeth = ceil(rack_len_min / rack_circ_pitch);
-rack_len = rack_teeth * rack_circ_pitch;
+// rack_circ_pitch, rack_teeth and rack_len come from params.scad — the
+// base mount has to cut a travel slot to exactly this length, so the
+// number cannot live in only one of the two files.
 rack_z_center = -rack_len / 2;         // hangs down from the face
 fin_t = gear_thickness;                // fin is as wide as the rack
 
-module mounting_face() {
-    // A bar carrying one central M12 boss, with the aperture bored
-    // straight through it. Rounded so there is no corner to catch.
+module mounting_boss() {
+    // The tube runs straight up into the thread through a cone. There is
+    // no flat plate: nothing needed one. The board hangs off the camera's
+    // own holder exactly as it does in the webcam, so the plate was
+    // carrying nothing but itself — and it was a wide flat shelf standing
+    // proud of both the tube and the thread, which is mass, an edge to
+    // catch, and a large flat overhang on the bed.
     //
-    // The thread is generated ON the boss rather than cut into a
-    // cylinder: threaded_rod() with internal=false is the male form, and
-    // it must be unioned into the plate before the aperture is taken out,
-    // or the bore would be refilled by the boss the same way base_mount's
-    // objective bore once was.
+    // The thread is generated ON the cone rather than cut into it:
+    // threaded_rod() with internal=false is the male form, and it has to
+    // be unioned in before the bore is taken out, or the bore would be
+    // refilled the same way base_mount's objective bore once was.
     difference() {
         union() {
-            translate([0, 0, face_t / 2])
-                cuboid([carrier_face_w, carrier_face_d, face_t],
-                       rounding = 4, edges = "Z");
-            // Male M12x0.5, rising from the face toward the camera.
-            //
-            // Sunk 0.6mm INTO the plate, not butted against it at
-            // 0.01mm. A hundredth of a millimetre is tangency, not
-            // intersection, and CGAL returns it as a separate body — the
-            // part rendered watertight, correct height, right thread
-            // diameter, and in TWO PIECES. Extend the rod by the same
-            // 0.6 so the exposed length is still boss_thread_len.
-            translate([0, 0, face_t - 0.6])
+            // tube -> thread, self-supporting at carrier_taper_angle
+            cylinder(d1 = carrier_tube_od, d2 = lens_thread_d, h = taper_h);
+            // Sunk 0.6mm INTO the cone, not butted at 0.01mm. A
+            // hundredth of a millimetre is tangency, not intersection,
+            // and CGAL returns it as a separate body — watertight,
+            // correct height, right thread diameter, and in TWO PIECES.
+            translate([0, 0, taper_h - 0.6])
                 threaded_rod(d = lens_thread_d, l = boss_thread_len + 0.6,
                              pitch = lens_thread_pitch, internal = false,
                              bevel2 = true, blunt_start1 = false,
@@ -132,8 +139,8 @@ module mounting_face() {
         // Sacrificial lead-in: cone the tip back so the first threads to
         // enter the holder are not the ones the bed squashed. Cut as
         // (oversize cylinder MINUS a cone) so it removes only what lies
-        // outside the cone — subtracting a plain cylinder here would take
-        // the whole tip off, which is what the first attempt did.
+        // outside the cone — subtracting a plain cylinder takes the whole
+        // tip off, which is what the first attempt did.
         translate([0, 0, boss_total - boss_lead_len - 0.01])
             difference() {
                 cylinder(d = lens_thread_d + 4, h = boss_lead_len + 0.02);
@@ -141,9 +148,9 @@ module mounting_face() {
                          d2 = lens_thread_d - 2 * boss_lead_taper,
                          h = boss_lead_len + 0.02);
             }
-        // Light path, taken LAST so nothing can refill it. Two diameters:
-        // narrow through the boss (all the thread can carry), opening to
-        // the tube's full bore once past the face.
+        // Light path, taken LAST so nothing can refill it. The tube's own
+        // 13.2mm bore stops at z=0; this carries 9mm the rest of the way,
+        // which is all the thread's wall can spare.
         translate([0, 0, -1])
             cylinder(d = boss_bore_d, h = boss_total + 2);
     }
@@ -191,23 +198,15 @@ module focus_rack() {
                  pressure_angle = gear_pressure_angle, anchor = CENTER);
 }
 
-module cable_relief() {
-    // The board is 55mm long on 20mm screw centres, so a tugged USB
-    // cable torques the mount through the PCB. A zip-tie slot in the
-    // face takes that load instead — compact, unlike the old post.
-    for (s = [-1, 1])
-        translate([s * (carrier_face_w / 2 - 4), 0, -1])
-            cube([2.6, 9, face_t + 2], center = false);
-}
-
 module pcb_carrier() {
-    difference() {
-        union() {
-            mounting_face();
-            carrier_tube();
-            rack_fin();
-        }
-        cable_relief();
+    // cable_relief() is gone with the plate it was cut into — it was a
+    // zip-tie slot so a tugged USB cable torqued the mount rather than
+    // the board. That strain path is now unhandled; if it matters, the
+    // slot wants to come back in the tube wall, not on a new plate.
+    union() {
+        mounting_boss();
+        carrier_tube();
+        rack_fin();
     }
     focus_rack();
 }

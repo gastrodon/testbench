@@ -127,38 +127,60 @@ module focus_gear() {
     }
 }
 
-// 2D lobed profile. r = R - d + d*cos(n*theta), so knob_d is the OUTER
-// diameter and the valleys lie 2*d inside it — a knob that measures what
-// params.scad says it measures, rather than one whose ridges stand proud
-// of the nominal size like the old flutes did.
+// 2D fidget-spinner profile: three bulbs on arms through a central hub.
 //
-// One degree per point: a lobe spans 40 degrees at n=9, so 40 segments
-// across each scallop, which is smooth to the finger and to the eye.
+// The fillet is a morphological CLOSING — grow by f, then shrink by f.
+// That fills concave corners with radius f while leaving convex ones
+// alone, which is exactly what the bulb-to-hub junction needs: a sharp
+// notch there is both a stress riser and unpleasant against a finger.
+// Written innermost-first, OpenSCAD applies offset(+f) then offset(-f).
 module knob_profile() {
-    R = knob_d / 2;
-    polygon([ for (a = [0 : 1 : 359])
-                let (r = R - knob_lobe_depth
-                         + knob_lobe_depth * cos(knob_lobes * a))
-                [r * cos(a), r * sin(a)] ]);
+    arm_r = knob_d / 2 - knob_lobe_r;   // bulb centre distance
+    offset(r = -knob_fillet)
+        offset(r = knob_fillet)
+            union() {
+                circle(r = knob_hub_r, $fn = 96);
+                for (a = [0 : 120 : 359])
+                    rotate([0, 0, a])
+                        translate([arm_r, 0])
+                            circle(r = knob_lobe_r, $fn = 96);
+            }
 }
 
-// Chamfered by extruding a shrunken profile into the full one at each
-// end. NOT by hull() — hull of a lobed outline is convex and would fill
-// every valley, handing back the cylinder this replaces. Not by
-// intersecting a chamfered cylinder either: that cuts at one radius and
-// so bites the lobe peaks while leaving the valleys square.
+// Chamfered by STACKED OFFSETS, not by linear_extrude(scale=).
+//
+// scale= scales a profile toward a point, and on a CONCAVE outline the
+// ruled surface it sweeps self-intersects — the spinner's waists are
+// deeply concave and it came out non-manifold every time, on a knob that
+// rendered and measured perfectly. hull() is worse: the hull of a spinner
+// is convex and fills the waists completely, handing back a disc. And
+// intersecting a chamfered cylinder cuts at one radius, so it bites the
+// bulb tips and leaves the waists square.
+//
+// A short stack of plain prisms, each offset a little further out, is
+// manifold by construction. At 12 steps over a 1mm chamfer each riser is
+// 0.083mm — well under a layer, so it prints as a chamfer either way.
+// The count is set by how it LOOKS, not how it prints: 6 steps printed
+// identically but read as visible banding in renders and in the web
+// viewer, which is where this gets judged.
+CHAMFER_STEPS = 12;
+
+module knob_bevel(h, o_start, o_end) {
+    for (i = [0 : CHAMFER_STEPS - 1])
+        translate([0, 0, h * i / CHAMFER_STEPS])
+            linear_extrude(height = h / CHAMFER_STEPS + 0.01)
+                offset(r = o_start + (o_end - o_start) * i / CHAMFER_STEPS)
+                    knob_profile();
+}
+
 module focus_knob() {
     c = knob_chamfer;
-    shrink = (knob_d / 2 - c) / (knob_d / 2);
-    // bottom chamfer: small profile opening out to full
-    linear_extrude(height = c, scale = 1 / shrink)
-        scale(shrink) knob_profile();
-    // the grip itself
-    translate([0, 0, c])
-        linear_extrude(height = knob_h - 2 * c) knob_profile();
-    // top chamfer: full profile closing back in
-    translate([0, 0, knob_h - c])
-        linear_extrude(height = c, scale = shrink) knob_profile();
+    eps = 0.01;
+    knob_bevel(c, -c, 0);                                   // bottom
+    translate([0, 0, c - eps])                              // the grip
+        linear_extrude(height = knob_h - 2 * c + 2 * eps) knob_profile();
+    translate([0, 0, knob_h - c])                           // top
+        knob_bevel(c, 0, -c);
 }
 
 // Cove blending the shaft into the knob face.
@@ -171,7 +193,7 @@ COVE_SEGS = 48;
 module knob_cove() {
     // valley radius, not peak: starting at the peak would leave the
     // cove overhanging thin air across every scallop
-    kr = knob_d / 2 - 2 * knob_lobe_depth - 0.5;   // inset: landing exactly
+    kr = knob_hub_r - 0.5;   // inset: landing exactly
          // on the valley makes the cove rim tangent to the knob surface,
          // which is contact without volume and loses manifoldness
     sr = shaft_d / 2;
@@ -196,8 +218,12 @@ module focus_pinion() {
     stub_len = arm_reach + 2;
     translate([0, 0, -(knob_h + shaft_to_knob)]) {
         focus_knob();
-        // cove sitting on the knob face, blending into the shaft
-        translate([0, 0, knob_h - 0.01])
+        // Cove sitting on the knob face, blending into the shaft. Sunk
+        // 0.5mm IN, not 0.01 — a hundredth of a millimetre is tangency,
+        // not intersection, and CGAL has returned exactly that as a
+        // non-manifold result twice on this part already. It sits well
+        // inside the hub radius, so the extra depth removes nothing.
+        translate([0, 0, knob_h - 0.5])
             knob_cove();
         // shaft from the knob up through the gear; it runs inside the
         // tooth roots, so gear and shaft union without a seam

@@ -331,12 +331,6 @@ def check_integrity(workdir: Path) -> bool:
         # because closed bearing bores could not be threaded past the
         # gear, and the snap-fit bearings removed that constraint.
         ("pinion", "use <focus_pinion.scad>\n", "focus_pinion();", 1),
-        # The adapter had NO coverage of any kind until now — the only
-        # printed part with none. Its pins are grafted onto conical
-        # flares, which is exactly the tangent-contact arrangement that
-        # has produced detached bodies elsewhere in this build.
-        ("technic_adapter", "use <technic_adapter.scad>\n",
-         "technic_adapter();", 1),
     ]
     ok_all = True
     meshes = {}
@@ -411,70 +405,6 @@ def check_integrity(workdir: Path) -> bool:
               f"   FAIL  <- no light path")
     print()
     return ok_all
-
-
-def check_technic_joint(workdir: Path) -> bool:
-    """Does the M3 actually pass through the adapter and into the base?
-
-    The Technic breakout is TWO parts and ONE bolt, and until now nothing
-    verified that the bolt has anywhere to go. The base carries a pilot
-    hole in its pad; the adapter carries a clearance hole and a
-    counterbore. Those live in different files with no shared source, so
-    each can be individually correct while the joint does not exist.
-
-    This is not an interference question. A blind pilot and a through-hole
-    that miss each other by 3mm interfere with nothing at all — the parts
-    bolt-face to bolt-face perfectly well and the screw simply has no
-    path. Same shape of defect as a blocked optical bore: missing absence
-    rather than present excess.
-    """
-    print("=" * 72)
-    print("TECHNIC JOINT — the M3 has a path through both parts")
-    print("=" * 72)
-
-    sleeve_od = scad_value("carrier_tube_od + 2*clearance + 2*wall")
-    pad_t = scad_value("pad_t", includes=["objective_focus_mount.scad"])
-    breakout_z = scad_value("breakout_z", includes=["objective_focus_mount.scad"])
-    pilot_depth = scad_value("m3_pilot_depth", includes=["objective_focus_mount.scad"])
-    plate_t = scad_value("plate_t", includes=["technic_adapter.scad"])
-    pad_x = sleeve_od / 2 + pad_t
-
-    hdr = ("use <objective_focus_mount.scad>\n"
-           "use <technic_adapter.scad>\n")
-    base = scad_render("base_mount();", workdir / "tj_base.stl",
-                       extra_header=hdr)
-    # rotate([0,90,0]) turns the adapter's pins from +Z to +X, so its
-    # baseplate underside lands flat on the pad face at pad_x.
-    adapter = scad_render(
-        f"translate([{pad_x},0,{breakout_z}]) rotate([0,90,0])"
-        f" technic_adapter();",
-        workdir / "tj_adapter.stl", extra_header=hdr)
-    print(f"  pad face at x={pad_x:.2f}  joint centred at z={breakout_z}")
-    print(f"  base pilot {pilot_depth}mm deep, adapter plate {plate_t}mm thick")
-
-    # March along the bolt axis. Every sample must be OUTSIDE both solids:
-    # inside means material where the screw needs to be.
-    xs = np.arange(pad_x + plate_t - 0.2, pad_x - pilot_depth, -0.25)
-    pts = np.column_stack([xs, np.zeros_like(xs), np.full_like(xs, breakout_z)])
-    in_base = base.contains(pts)
-    in_adapter = adapter.contains(pts)
-    blocked = in_base | in_adapter
-    ok = not blocked.any()
-    if ok:
-        print(f"  bolt axis clear over x {xs.min():.2f}..{xs.max():.2f} "
-              f"({len(xs)} samples)  PASS")
-    else:
-        bad = xs[blocked]
-        who = "base" if in_base.any() else "adapter"
-        print(f"  *** blocked at x {bad.max():.2f}..{bad.min():.2f} "
-              f"(in {who}) — the screw has no path  FAIL")
-
-    # And the faces must actually meet: mating surfaces flush, not gapped.
-    gap = trimesh.proximity.closest_point(base, adapter.vertices)[1].min()
-    seated = gap < 0.05
-    print(f"  mating faces  gap {gap:.3f} mm  "
-          f"{'PASS' if seated else 'FAIL  <- adapter floats off the pad'}")
-    return ok and seated
 
 
 def check_assembly(workdir: Path) -> bool:
@@ -605,7 +535,6 @@ def main() -> int:
             "integrity": check_integrity(workdir),
             "rack_and_pinion": check_rack_and_pinion(workdir),
             "assembly": check_assembly(workdir),
-            "technic_joint": check_technic_joint(workdir),
         }
     finally:
         shutil.rmtree(workdir, ignore_errors=True)

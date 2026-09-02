@@ -1,13 +1,13 @@
 export const meta = {
-  name: 'cad-preflight',
-  description: 'Read-only geometric verification (interference + sustained contact, duplicated-dimension audit) and cold-read visual review of parametric CAD parts, before slicing or printing. Every finding is tagged by how it was checked: measured, rendered, or reasoned.',
+  name: 'design-verify',
+  description: 'Read-only geometric verification (interference + sustained contact, duplicated-dimension audit) and cold-read visual review of a parametric CAD design. Ends in a verdict on the DESIGN — is the geometry sound, does the mechanism work, what is unverified — not a print readiness check; slicing is one possible next step for a clean verdict, not the goal. Every finding is tagged by how it was checked: measured, rendered, or reasoned.',
   phases: ['Discover', 'Verify geometry', 'Review renders', 'Report'],
 }
 
 // Every finding an agent returns must declare HOW it knows, not just WHAT it
 // found. This is the structural fix for a real failure mode: a reviewer
 // computing something quickly and reporting it as verified when it was only
-// reasoned. See .claude/skills/cad-print/SKILL.md, "Tag every finding."
+// reasoned. See .claude/skills/cad-design/SKILL.md, "Tag every finding."
 const FINDING_SCHEMA = {
   type: 'object',
   required: ['findings'],
@@ -36,7 +36,7 @@ const FILES_SCHEMA = {
   },
 }
 
-log('cad-preflight: discovering target parts')
+log('design-verify: discovering target parts')
 phase('Discover')
 
 const discoverPrompt = args && args.parts
@@ -46,7 +46,7 @@ const discoverPrompt = args && args.parts
 const discovered = await agent(discoverPrompt, { schema: FILES_SCHEMA, label: 'discover' })
 const files = (discovered && discovered.files) || []
 
-log(`cad-preflight: ${files.length} part file(s) to check`)
+log(`design-verify: ${files.length} part file(s) to check`)
 phase('Verify geometry')
 
 const geometryPrompt = (file) => `
@@ -96,7 +96,7 @@ const geometryFindings = await pipeline(files, (file) =>
 )
 
 phase('Review renders')
-log('cad-preflight: rendering canonical views for a cold read')
+log('design-verify: rendering canonical views for a cold read')
 
 const renderPrompt = (file) => `
 Render ${file} with OpenSCAD in full --render mode (not preview — preview
@@ -140,14 +140,14 @@ const coldReads = await pipeline(renderReports, (renderReport) =>
 )
 
 phase('Report')
-log('cad-preflight: synthesizing preflight report')
+log('design-verify: synthesizing design verdict')
 
 const allFindings = []
   .concat(...geometryFindings.filter(Boolean).map((f) => f.findings || []))
   .concat(...coldReads.filter(Boolean).map((f) => f.findings || []))
 
 const report = await agent(`
-Synthesize one CAD preflight report from these tagged findings (each
+Synthesize one CAD design verdict from these tagged findings (each
 already carries method: measured/rendered/reasoned, and severity
 fail/warn/info):
 
@@ -155,19 +155,22 @@ ${JSON.stringify(allFindings, null, 2)}
 
 Group by severity, fails first. For every fail or warn, state the file,
 the claim, and the method — never let a "reasoned" finding read like a
-"measured" one in your summary. End with an explicit go/no-go for
-SLICING (not printing): go only if there are zero fail-severity findings
-whose method is measured or rendered. A reasoned-only fail is a flag to
-verify by measuring or rendering, not an automatic no-go — say so
-explicitly.
+"measured" one in your summary. This is a verdict on the DESIGN itself —
+is the geometry sound, does every mechanism actually work, what remains
+unverified — not primarily a print-readiness check; most designs this
+runs against never reach a printer. Where it's relevant, note whether
+zero fail-severity findings (measured or rendered) would also clear the
+design for slicing, as one possible next step, not the point of the
+report. A reasoned-only fail is a flag to verify by measuring or
+rendering, not an automatic fail — say so explicitly.
 
 Do not recommend running the printer, homing an axis, or streaming
-g-code. This report ends at slicer-readiness. Driving the physical
-machine is a separate, human-attended step, on purpose: a workflow run
-can be replayed and would re-issue any physical action it contained.
+g-code, even if the design looks clean. Driving physical hardware is a
+separate, human-attended, supervisor-only step, on purpose: a workflow
+run can be replayed and would re-issue any physical action it contained.
 `.trim(), { label: 'report' })
 
-log('cad-preflight: done')
+log('design-verify: done')
 
 return {
   files,

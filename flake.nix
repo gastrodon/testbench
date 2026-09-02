@@ -7,10 +7,6 @@
 
     # Pinned by commit, same revs fetch-libs.sh used to use — now content-addressed
     # and hash-verified by Nix instead of an imperative git clone script.
-    technic-scad = {
-      url = "github:cfinke/Technic.scad/41f17a4696b582850097a2e3779348bc27c87f47";
-      flake = false;
-    };
     pela-blocks = {
       url = "github:paulirotta/PELA-blocks/0e7dcc9df37e21bbf4e59dcd356259579bb91ba8";
       flake = false;
@@ -24,17 +20,16 @@
     };
   };
 
-  outputs = { self, nixpkgs, flake-utils, technic-scad, pela-blocks, bosl2 }:
+  outputs = { self, nixpkgs, flake-utils, pela-blocks, bosl2 }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
 
-        # Assembles the two vendored libraries into the lib/Technic.scad,
-        # lib/PELA-blocks layout optics/*.scad already expects, so no .scad
-        # files need to change to consume this.
+        # Assembles the vendored libraries into the lib/ layout
+        # optics/*.scad expects. Technic.scad went with the pin breakout —
+        # nothing models LEGO geometry any more.
         opticsLib = pkgs.runCommand "testbench-optics-lib" { } ''
           mkdir -p $out
-          cp -r ${technic-scad} $out/Technic.scad
           cp -r ${pela-blocks} $out/PELA-blocks
           cp -r ${bosl2} $out/BOSL2
         '';
@@ -186,8 +181,6 @@
               # DOWN (28mm disc = bed adhesion) with the gear on top.
               emit pinion focus_pinion.scad "focus_pinion_printable();"
 
-              # technic adapter: baseplate DOWN, pins UP — as modelled
-              openscad -o $out/technic_adapter.stl build/technic_adapter.scad
 
               # test pieces
               openscad -o $out/slide_coupon.stl build/slide_coupon.scad

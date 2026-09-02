@@ -116,28 +116,38 @@ knob_cove_pow = 2.2;
 
 // --- knob grip ---------------------------------------------------------
 //
-// The knob is a LOBED "bouba" profile, not a cylinder with flutes cut in
-// it. Radius follows r = R - d + d*cos(n*theta), so knob_d stays the
-// OUTER diameter and the valleys sit 2*d inside it.
+// FIDGET-SPINNER silhouette: three round bulbs on arms, joined through a
+// small central hub by a narrow waist. Built from circles and filleted,
+// NOT from a polar cosine — r = R - d + d*cos(3*theta) can only make a
+// scalloped triangle, where the lobes are broad and the valleys shallow.
+// A real spinner is the opposite: the bulbs are nearly full circles and
+// the waist between them is genuinely thin, and no smooth radial function
+// gives you that transition.
 //
-// Why lobes rather than the old 16 square flutes: torque on a finger knob
-// is applied by pressing INTO a hollow and pushing along it, not by
-// catching a sharp edge. Broad smooth scallops give the fingertip
-// somewhere to sit and a surface to push against along its whole length.
-// Sixteen 1.6mm square ridges gave a thumb nothing to seat in and put
-// sharp corners where the hand actually touches.
+// Why it grips better than a scalloped triangle: the narrow waist is what
+// a finger and thumb actually pinch, and the bulb beyond it is what stops
+// them sliding off under torque. A shallow scallop only offers friction;
+// a waist offers a mechanical stop.
+// MEASURED, not guessed. The waist is what makes this a spinner rather
+// than a rounded triquetra, and the fillet was quietly destroying it:
 //
-// THREE lobes: a big curved triangle. Each lobe spans 120 degrees, so a
-// 28mm knob gives three finger seats about 29mm of arc apart — thumb and
-// two fingers land in them naturally and each one is a whole fingertip
-// wide, not a ridge. Depth 3 puts the waist at 16mm against 28mm peaks,
-// which is enough shape to push against rather than merely feel.
+//   hub_r 6, fillet 4   waist  8.00   ratio 0.40   <- barely necked
+//   hub_r 6, fillet 2   waist  6.00   ratio 0.30
+//   hub_r 5, fillet 1.5 waist  5.00   ratio 0.25   <- chosen
+//   hub_r 4, fillet 1   waist  4.00   ratio 0.20
 //
-// Many shallow lobes are knurling: they add texture but no leverage,
-// because the finger still has to grip by friction. Three deep ones let
-// you push a lobe around, which is how a hand actually applies torque.
-knob_lobes = 3;
-knob_lobe_depth = 3.0;
+// A closing operation of radius f fills any concavity narrower than 2f.
+// The gap between adjacent bulb circles is only ~4.8mm, so a fillet of 4
+// bridged it almost completely — the waist stopped being the hub and
+// became the fillet. Below about 2 the fillet stops inflating it and the
+// waist is exactly hub_r, which is the behaviour you want from a blend.
+//
+// hub_r bottoms out at the shaft: 6mm of shaft passes through it, and the
+// cove that blends shaft to face needs somewhere to sit. 5 leaves a 2mm
+// annulus, which is enough for both.
+knob_lobe_r = 8;      // radius of each round bulb
+knob_hub_r  = 5;      // central hub the bulbs join through
+knob_fillet = 1.5;    // concave blend where a bulb meets the hub
 
 // Break the knob's outer edges. Bottom chamfer also gives the first layer
 // a smaller footprint that grows, which is the usual dodge for elephant
@@ -179,15 +189,13 @@ shaft_d_frame = 6;
 // Knob diameter multiplies tactile fineness for free: the same angular
 // resolution at your fingertip covers proportionally less rotation on a
 // bigger knob. Cheapest available precision — no gearing change.
-// 34, not 28. Going from a circle to a three-lobe triangle SHRINKS the
-// grip for a given nominal diameter: a peak sits opposite a valley, so
-// pinching across a 28mm lobed knob gives 22mm and lobe-to-lobe gives
-// 24.2 — against a flat 28 on the circle it replaced. At 34 the peaks are
-// 17 from centre and lobe-to-lobe is 29.4mm, slightly more grip than the
-// original circle, which is the right direction: this file argues above
-// that knob diameter is the cheap lever for fine focus, and the knob sits
-// outboard where nothing constrains its radius.
-knob_d = 34;
+// 40 outer. The bulbs sit at knob_d/2 - knob_lobe_r from centre, so this
+// is a genuine caliper diameter across two bulb tips — unlike the lobed
+// profile it replaces, where a peak sat opposite a valley and a nominal
+// 28 only pinched to 22. Bigger is wanted here: params argues above that
+// knob diameter is the cheap lever for fine focus, and the knob hangs
+// outboard of everything, so nothing constrains its radius.
+knob_d = 40;
 
 // LEGO Technic interface (cfinke/Technic.scad) — provisional frame
 // attachment at the objective end, per Technic.scad's own constants
@@ -220,6 +228,20 @@ carrier_face_w = 34;               // PCB mounting bar, X (spans the screws)
 carrier_face_d = 21;               // Y — wide enough to carry the tube
 carrier_face_t = 2.6;
 
+// Angle of the cone that takes the tube up into the M12 thread, measured
+// FROM THE BED like pinion_tip_slope. The flat mounting plate that used
+// to sit here is gone: nothing needed a plate, only the thread and the
+// tube, and the plate was a wide flat overhang standing proud of both.
+//
+// 45 is the self-support limit and the closest printable value to the 40
+// that was sketched. Printed thread-down, this cone WIDENS as it rises,
+// so its underside is the overhang: at 45 each 0.2mm layer steps out
+// 0.2mm and sits about half on the one below, which is the usual limit.
+// At 40 it steps 0.24mm and needs support. The two differ by 0.5mm of
+// height on a 3.06mm radial step — invisible in the hand, decisive on
+// the bed.
+carrier_taper_angle = 45;
+
 // Rack must clear the BASE SLEEVE's outside, since it rides alongside it.
 // Sleeve OD is 23.4 (r=11.7) and BOSL2's rack backing sits
 // 2*dedendum+addendum behind the pitch line, so the pitch line has to be
@@ -227,8 +249,23 @@ carrier_face_t = 2.6;
 rack_backing = 2 * 1.25 * gear_mod + gear_mod;
 rack_y = -(carrier_tube_od / 2 + 2.4 + rack_backing + 1.6);
 rack_engage_margin = 5;            // rack beyond each end of travel, mm
+
+// Rack length, and the envelope it sweeps. HERE because three files need
+// it: pcb_carrier.scad builds the rack, objective_focus_mount.scad has to
+// cut a slot for it to travel through, and check.py verifies the mesh.
+// Two of those were already deriving it from the same formula
+// independently — the third would have made it a hat-trick of the exact
+// drift this file exists to prevent.
+rack_circ_pitch = PI * gear_mod;
+rack_teeth = ceil((focus_travel + 2 * rack_engage_margin) / rack_circ_pitch);
+rack_len = rack_teeth * rack_circ_pitch;
 carrier_z_home = tube_len_nominal + holder_h;
 pinion_z = carrier_z_home - rack_engage_margin;  // grounded; never travels
+
+// Lowest the rack (and the fin behind it) ever reaches — at focus home,
+// before the carrier rises. Anything the rack must pass through has to be
+// open from here up.
+rack_z_min = carrier_z_home - rack_len;
 // pinion_y = rack_y - gear_dist(...) — computed where BOSL2 is available,
 // since params.scad is included before the library.
 
