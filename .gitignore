@@ -5,3 +5,12 @@ firmware/.gopls-goroot
 *.gif
 result
 result-*
+
+# ~/.config/git/ignore excludes .claude/ globally (local session state,
+# worktrees). This repo ships a real skill + workflow meant to be
+# committed and shared with anyone who clones it — un-ignore just those.
+!.claude/
+!.claude/skills/
+!.claude/skills/**
+!.claude/workflows/
+!.claude/workflows/**

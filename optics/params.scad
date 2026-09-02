@@ -114,6 +114,31 @@ pinion_tip_slope = 50;
 knob_cove_h = 4.0;
 knob_cove_pow = 2.2;
 
+// --- knob grip ---------------------------------------------------------
+//
+// The knob is a LOBED "bouba" profile, not a cylinder with flutes cut in
+// it. Radius follows r = R - d + d*cos(n*theta), so knob_d stays the
+// OUTER diameter and the valleys sit 2*d inside it.
+//
+// Why lobes rather than the old 16 square flutes: torque on a finger knob
+// is applied by pressing INTO a hollow and pushing along it, not by
+// catching a sharp edge. Broad smooth scallops give the fingertip
+// somewhere to sit and a surface to push against along its whole length.
+// Sixteen 1.6mm square ridges gave a thumb nothing to seat in and put
+// sharp corners where the hand actually touches.
+//
+// THREE lobes: a big curved triangle. Each lobe spans 120 degrees, so a
+// 28mm knob gives three finger seats about 29mm of arc apart — thumb and
+// two fingers land in them naturally and each one is a whole fingertip
+// wide, not a ridge. Depth 3 puts the waist at 16mm against 28mm peaks,
+// which is enough shape to push against rather than merely feel.
+//
+// Many shallow lobes are knurling: they add texture but no leverage,
+// because the finger still has to grip by friction. Three deep ones let
+// you push a lobe around, which is how a hand actually applies torque.
+knob_lobes = 3;
+knob_lobe_depth = 3.0;
+
 // Break the knob's outer edges. Bottom chamfer also gives the first layer
 // a smaller footprint that grows, which is the usual dodge for elephant
 // foot on a wide disc.
@@ -154,7 +179,15 @@ shaft_d_frame = 6;
 // Knob diameter multiplies tactile fineness for free: the same angular
 // resolution at your fingertip covers proportionally less rotation on a
 // bigger knob. Cheapest available precision — no gearing change.
-knob_d = 28;
+// 34, not 28. Going from a circle to a three-lobe triangle SHRINKS the
+// grip for a given nominal diameter: a peak sits opposite a valley, so
+// pinching across a 28mm lobed knob gives 22mm and lobe-to-lobe gives
+// 24.2 — against a flat 28 on the circle it replaced. At 34 the peaks are
+// 17 from centre and lobe-to-lobe is 29.4mm, slightly more grip than the
+// original circle, which is the right direction: this file argues above
+// that knob diameter is the cheap lever for fine focus, and the knob sits
+// outboard where nothing constrains its radius.
+knob_d = 34;
 
 // LEGO Technic interface (cfinke/Technic.scad) — provisional frame
 // attachment at the objective end, per Technic.scad's own constants

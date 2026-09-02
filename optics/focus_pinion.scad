@@ -127,22 +127,38 @@ module focus_gear() {
     }
 }
 
-// The flutes stand slightly proud of knob_d, so the chamfer mask is taken
-// at their outer diameter — cutting at knob_d would shave the grip ridges
-// off entirely instead of breaking their edges.
-knob_od = knob_d + 0.4;
+// 2D lobed profile. r = R - d + d*cos(n*theta), so knob_d is the OUTER
+// diameter and the valleys lie 2*d inside it — a knob that measures what
+// params.scad says it measures, rather than one whose ridges stand proud
+// of the nominal size like the old flutes did.
+//
+// One degree per point: a lobe spans 40 degrees at n=9, so 40 segments
+// across each scallop, which is smooth to the finger and to the eye.
+module knob_profile() {
+    R = knob_d / 2;
+    polygon([ for (a = [0 : 1 : 359])
+                let (r = R - knob_lobe_depth
+                         + knob_lobe_depth * cos(knob_lobes * a))
+                [r * cos(a), r * sin(a)] ]);
+}
 
+// Chamfered by extruding a shrunken profile into the full one at each
+// end. NOT by hull() — hull of a lobed outline is convex and would fill
+// every valley, handing back the cylinder this replaces. Not by
+// intersecting a chamfered cylinder either: that cuts at one radius and
+// so bites the lobe peaks while leaving the valleys square.
 module focus_knob() {
-    intersection() {
-        union() {
-            cylinder(d = knob_d, h = knob_h);
-            for (a = [0 : 360 / flute_n : 359])
-                rotate([0, 0, a])
-                    translate([knob_d / 2 - 0.6, 0, knob_h / 2])
-                        cube([1.6, 1.6, knob_h], center = true);
-        }
-        cyl(d = knob_od, h = knob_h, chamfer = knob_chamfer, anchor = BOTTOM);
-    }
+    c = knob_chamfer;
+    shrink = (knob_d / 2 - c) / (knob_d / 2);
+    // bottom chamfer: small profile opening out to full
+    linear_extrude(height = c, scale = 1 / shrink)
+        scale(shrink) knob_profile();
+    // the grip itself
+    translate([0, 0, c])
+        linear_extrude(height = knob_h - 2 * c) knob_profile();
+    // top chamfer: full profile closing back in
+    translate([0, 0, knob_h - c])
+        linear_extrude(height = c, scale = shrink) knob_profile();
 }
 
 // Cove blending the shaft into the knob face.
@@ -153,7 +169,11 @@ module focus_knob() {
 COVE_SEGS = 48;
 
 module knob_cove() {
-    kr = knob_d / 2;
+    // valley radius, not peak: starting at the peak would leave the
+    // cove overhanging thin air across every scallop
+    kr = knob_d / 2 - 2 * knob_lobe_depth - 0.5;   // inset: landing exactly
+         // on the valley makes the cove rim tangent to the knob surface,
+         // which is contact without volume and loses manifoldness
     sr = shaft_d / 2;
     // w runs 0 at the knob rim to 1 at the shaft; z rises as w^pow, so the
     // steep part of the sweep lands at the centre
