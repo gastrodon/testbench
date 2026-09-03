@@ -41,38 +41,47 @@ drawtube_travel = 90;              // mm, approximate
 // before the through-bore is cut — cutting first and threading second
 // would refill the bore the way base_mount's objective bore once did).
 // 7mm is 14 turns at 0.5 pitch, proven on the microscope build to seat the
-// camera's holder with margin to spare.
+// camera's holder with margin to spare. This is a BASE length now, not
+// the final one — nosepiece.scad extends it by whatever height the
+// boss-side cone's steeper angle frees up, so the overall body length
+// stays put regardless of that angle.
 boss_thread_len = 7;
 boss_lead_len = 1.0;               // sacrificial cone at the boss tip, IF the boss prints bed-side
 boss_lead_taper = 1.2;             // radial cut-back at that tip
 boss_bore_d = 9;                   // light path through the boss — proven wall at this thread
 
-// Retaining flange: bigger than the focuser bore so the nosepiece cannot
-// slide all the way in and vanish down the drawtube. Thin, because
-// EVA-319's open question is whether prime focus is reachable at all with
-// the diagonal in — every mm of flange is a mm subtracted from the
-// drawtube's ~90mm of travel, so this stays as thin as still prints
-// cleanly (proven wall thickness elsewhere in this project is >=1.8mm).
+// Angle of the cone from the hilt ridge down to the M12 thread, measured
+// FROM THE BED (0 = flat/horizontal, 90 = vertical), same convention the
+// microscope build's carrier_taper_angle uses. This cone NARROWS going
+// up in the current nose-down print orientation, so it never overhangs
+// regardless of angle (a shrinking-upward transition is self-supporting
+// at any angle — the 45 deg self-support floor that constrains the
+// OTHER, widening cone at the hilt simply does not apply here).
+// Steepening this one just trades cone height for thread length, 1:1
+// (see nosepiece.scad's boss_thread_len_), with no print-quality cost.
+// Much steeper than that 45 deg floor: tan(15) is a quarter of tan(45),
+// so this cone claims a quarter of the axial space it used to for the
+// same diameter change.
+boss_taper_angle = 15;
+
+// Retaining diameter (the "hilt ridge" in nosepiece.scad): bigger than
+// the focuser bore so the nosepiece cannot slide all the way in and
+// vanish down the drawtube. No separate thickness parameter any more —
+// the ridge is where two cones meet, chamfered, not a flat-walled
+// flange with its own height.
 flange_od = focuser_bore + 6;
-flange_t = 2.0;
 
 // Nose length. FOUND SHORT ON THE FIRST PRINT: 8mm left too little of the
 // nose past the focuser's set-screw holes for them to actually bite —
 // workable by hand on this print (screws still grip, just barely) but not
-// something to repeat on purpose. Bumped generously rather than by a
-// small margin: drawtube_travel is ~90mm, so 32mm still leaves plenty of
-// focus range, and there was no reason to re-guess a second undersized
-// value when the room was available. Still provisional — nobody has
-// confirmed the set-screw hole position relative to the focuser opening,
-// so this is "clearly enough", not a measured number. Original reasoning
-// (screws only need to grip, not carry load — the flange stops axial
-// travel) still holds.
-nose_len = 32;
-
-// Cone from the nose/flange OD down to the thread OD, same self-support
-// angle the microscope build settled on (45 deg is the floor, not the
-// target — steeper is a cleaner print when printed thread-up).
-taper_angle = 45;
+// something to repeat on purpose. Went to 32mm as a first generous
+// correction, then settled to 20mm — still comfortable set-screw
+// engagement, without the extra length that made the boss-down v2 print
+// top-heavy enough to detach from the bed (see nosepiece.scad's print-
+// orientation notes). drawtube_travel is ~90mm, so 20mm still leaves
+// plenty of focus range. Original reasoning (screws only need to grip,
+// not carry load — the flange stops axial travel) still holds.
+nose_len = 20;
 
 wall = 2.4;                        // generic wall thickness, mm
 $fn = 64;
