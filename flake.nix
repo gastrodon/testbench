@@ -13,7 +13,9 @@
     };
     # Threads (threading.scad) + gears/racks (gears.scad) for the
     # prime-focus microscope build — real helical threads and a proper
-    # rack-and-pinion instead of hand-rolled geometry.
+    # rack-and-pinion instead of hand-rolled geometry. Same pin the
+    # telescope build (tele/) uses for its own M12x0.5 boss, kept
+    # identical on purpose rather than two BOSL2 pins to reconcile.
     bosl2 = {
       url = "github:BelfrySCAD/BOSL2/fcfce7c763863d8e66d5f36a551d11129ec1a607";
       flake = false;
@@ -31,6 +33,13 @@
         opticsLib = pkgs.runCommand "testbench-optics-lib" { } ''
           mkdir -p $out
           cp -r ${pela-blocks} $out/PELA-blocks
+          cp -r ${bosl2} $out/BOSL2
+        '';
+
+        # tele/*.scad only needs BOSL2 (threading), not Technic/PELA — no
+        # LEGO interface on this part.
+        teleLib = pkgs.runCommand "testbench-tele-lib" { } ''
+          mkdir -p $out
           cp -r ${bosl2} $out/BOSL2
         '';
 
@@ -176,6 +185,22 @@
 
             '';
 
+          # nix build .#tele-stl && ls result/ — the EVA-319 nosepiece,
+          # emitted via nosepiece_printable() (boss down — see nosepiece.scad
+          # for why that orientation and not the as-modelled one).
+          tele-stl = pkgs.runCommand "testbench-tele-stl"
+            { nativeBuildInputs = [ pkgs.openscad ]; }
+            ''
+              mkdir -p build $out
+              cp ${./tele}/*.scad build/
+              ln -s ${teleLib} build/lib
+              cat > build/_nosepiece.scad <<EOF
+              use <nosepiece.scad>
+              nosepiece_printable();
+              EOF
+              openscad -o $out/nosepiece.stl build/_nosepiece.scad
+            '';
+
           # Exposed directly for inspection/testing: `nix build .#firmware-goroot`
           # then `GOROOT=./result GOFLAGS=-tags=arduino_uno gopls check firmware/main.go`.
           firmware-goroot = firmwareGoroot;
@@ -192,18 +217,22 @@
             pkgs.usbutils
             opticsPython
             pkgs.imagemagick   # montage: canonical-view contact sheets
-            # Slicing + inspection for the optics parts. prusa-slicer's
-            # CLI generates the gcode; prusa-gcodeviewer opens a sliced
-            # file to step through layer by layer, which is the only way
-            # to actually SEE a toolpath before committing the machine to
-            # it. CuraEngine was dropped from nixpkgs, so this is the
-            # supported CLI slicer here.
+            # Slicing + inspection for both optics/ and tele/ parts.
+            # prusa-slicer's CLI generates the gcode; prusa-gcodeviewer
+            # opens a sliced file to step through layer by layer, which
+            # is the only way to actually SEE a toolpath before
+            # committing the machine to it. CuraEngine was dropped from
+            # nixpkgs, so this is the supported CLI slicer here.
             pkgs.prusa-slicer
           ];
           shellHook = ''
             if [ ! -e optics/lib ]; then
               ln -sfn ${opticsLib} optics/lib
               echo "optics/lib -> Nix store (pinned via flake inputs, see flake.nix)"
+            fi
+            if [ ! -e tele/lib ]; then
+              ln -sfn ${teleLib} tele/lib
+              echo "tele/lib -> Nix store (pinned via flake inputs, see flake.nix)"
             fi
             ln -sfn ${firmwareGoroot} firmware/.gopls-goroot
           '';
