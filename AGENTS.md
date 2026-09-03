@@ -91,6 +91,19 @@ Part of the
   fail at call time, not import time, so a missing dep surfaces as a
   crash mid-run rather than an ImportError. Both are in `opticsPython`;
   don't drop them as "unused".
+- **The stress pipeline (`fea/`) works around several CalculiX/meshio
+  input-format traps** — 20-char field limits misreported as bogus
+  set errors, an element label ccx doesn't know, inverted coarse
+  quadratic tets. All patched in `fea/fealib.py` and documented in
+  `fea/README.md`; read that before touching the mesh→deck translation.
+- **CalculiX's contact output lies in two specific ways**, both measured
+  here against cases with known answers: `CPRESS` is not a usable
+  pressure (integrated 1.24-1.33x the known transferred force, varying
+  with geometry and mesh, so not a constant to divide out — the pipeline
+  reports the normal traction `-n.sigma.n` instead), and `COPEN` never
+  goes positive, so separation must be read from bearing area, not from
+  an opening gap. `fea/README.md`, and `fea/check_assembly.py` is the
+  regression test that pins both.
 - **`optics/lib` is a Nix-store symlink created by the devShell hook and
   Nix garbage-collects it.** `Can't open include file 'lib/BOSL2/std.scad'`
   means only this; `nix develop` recreates it.

@@ -1,6 +1,6 @@
 export const meta = {
   name: 'design-verify',
-  description: 'Read-only geometric verification (interference + sustained contact, duplicated-dimension audit) and cold-read visual review of a parametric CAD design. Ends in a verdict on the DESIGN — is the geometry sound, does the mechanism work, what is unverified — not a print readiness check; slicing is one possible next step for a clean verdict, not the goal. Every finding is tagged by how it was checked: measured, rendered, or reasoned.',
+  description: 'Read-only geometric verification (interference + sustained contact, duplicated-dimension audit), stress and joint verification against declared load/assembly cases (fea/), and cold-read visual review of a parametric CAD design. Ends in a verdict on the DESIGN — is the geometry sound, does the mechanism work, does it carry its declared load, what is unverified — not a print readiness check; slicing is one possible next step for a clean verdict, not the goal. Every finding is tagged by how it was checked: measured, rendered, or reasoned.',
   phases: ['Discover', 'Verify geometry', 'Review renders', 'Report'],
 }
 
@@ -78,6 +78,36 @@ Target: ${file}
    - Whether the part's PRINT orientation (if the file sets one) actually
      matches its ASSEMBLED orientation relative to whatever it mates with
      — these have been silently different before.
+   - STRESS, against declared intent only. If a loadcases.py in the
+     part's directory declares a case for this part: export the part's
+     STL the way the project's own build script does, then run
+       python fea/fealib.py <part.stl> <that loadcases.py> <case name>
+     inside nix develop, and report the converged peak vs the allowable
+     as a measured finding whose evidence states the load case it is
+     conditional on (supports, load, material, the case's own rationale
+     string) plus whether the peak converged. A non-converged peak is a
+     sharp-corner finding, not a number to quote. If the part plainly
+     carries another part (per the README or assembly file) but declares
+     NO load case, report exactly that — "load-bearing but load intent
+     undeclared; stress unverified" — as its own finding (reasoned).
+     NEVER invent boundary conditions to run the solver anyway: a stress
+     number anchored to guessed intent reads as measured while verifying
+     nothing. Doctrine and number-reading rules: fea/README.md.
+   - JOINTS, if an assemblies.py in the same directory declares a case
+     covering this part. A contact solve takes minutes and other agents
+     are checking the case's other parts at the same time with no way to
+     coordinate, so run it ONLY if this part is the first one listed in
+     that case's `parts`; otherwise report one info finding naming the
+     case and the part that runs it, and move on. To run it:
+       python fea/assembly.py <that assemblies.py> <case name>
+     inside nix develop and report, per interface, the bearing area
+     against the declared area, the peak and mean contact pressure, and
+     the max slip — measured findings conditional on the declared case,
+     naming the friction coefficient for contact interfaces. An interface
+     bearing on well under its declared area has PARTLY SEPARATED: say
+     which joint and how much, because a joint carrying its load on a
+     fraction of its face is a real finding even when no part is near
+     yielding.
 4. Do not invent a defect you can't point to a specific line, value, or
    measurement for. If something is unverifiable in the time you have,
    report that fact as its own finding (method "reasoned", evidence
@@ -155,7 +185,14 @@ ${JSON.stringify(allFindings, null, 2)}
 
 Group by severity, fails first. For every fail or warn, state the file,
 the claim, and the method — never let a "reasoned" finding read like a
-"measured" one in your summary. This is a verdict on the DESIGN itself —
+"measured" one in your summary. Stress findings carry an extra
+conditionality: each is measured only relative to the declared load or
+assembly case named in its evidence — restate that case next to the
+number, quote capacities as order-of-magnitude ("~1.6 kg" grade, never a
+rating), and treat "load-bearing but no declared load case" findings as
+genuine unverified surface, not as passes. A joint bearing on much less
+than its declared interface area is its own finding, separate from
+whether any part is near yielding. This is a verdict on the DESIGN itself —
 is the geometry sound, does every mechanism actually work, what remains
 unverified — not primarily a print-readiness check; most designs this
 runs against never reach a printer. Where it's relevant, note whether

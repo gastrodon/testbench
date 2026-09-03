@@ -1,6 +1,6 @@
 ---
 name: cad-design
-description: Parametric CAD modeling and geometric design verification — OpenSCAD/BOSL2 (or similar) part design, iterating on a bracket/mechanism/part, checking interference and whether a mechanism actually works, mesh/DFM review, catching silent modeling failures that pass every geometric test. Load this whenever writing, reviewing, or iterating on a parametric CAD part. Uses a swarm of read-only subagents (a workflow) for verification and rendering. For slicing and driving a physical printer, use the separate `print-job` skill instead — that one runs single-model, on purpose.
+description: Parametric CAD modeling, geometric design verification, and stress/load analysis — OpenSCAD/BOSL2 (or similar) part design, iterating on a bracket/mechanism/part, checking interference and whether a mechanism actually works, mesh/DFM review, catching silent modeling failures that pass every geometric test, and FEA against declared load cases (fea/) for weak spots, load capacity, material choice, and lightweighting — including multi-part assemblies under load, where it answers how force crosses a joint: bearing area, contact pressure, whether a joint separates or slips. Load this whenever writing, reviewing, or iterating on a parametric CAD part, or when asked what a part or assembly can hold, where it will fail, or how load passes through it. Uses a swarm of read-only subagents (a workflow) for verification and rendering. For slicing and driving a physical printer, use the separate `print-job` skill instead — that one runs single-model, on purpose.
 ---
 
 # CAD design
@@ -133,7 +133,10 @@ class. Do both; don't substitute one for the other.
   engine such as manifold3d worked well here; anything that can report
   interference volume and minimum surface distance, not just "renders
   fine," will do) and a checker that reads dimensions from the same
-  source of truth as the model, per rule 3.
+  source of truth as the model, per rule 3. For a part that carries
+  load, measuring extends to solving it (`fea/`, below): whether the
+  shape is right and whether it holds are different questions, and no
+  amount of geometric querying answers the second.
 - **Looking** needs orthographic views down the axis of interest (a
   perspective isometric hides axial offsets and makes tangency
   ambiguous — three separate real defects were simultaneously visible in
@@ -148,6 +151,64 @@ class. Do both; don't substitute one for the other.
   because of the camera angle" from "this is actually wrong," which
   matters because those two need opposite responses (re-render vs. fix).
 
+## Stress is checkable — but only against declared intent (`fea/`)
+
+Geometric verification answers "is this shape what the model claims."
+`fea/` (gmsh → CalculiX → numpy, all in the devshell, validated against an
+analytic cantilever — `fea/README.md`) answers a different question: "does
+this shape carry the load it exists to carry." A stress result is a
+*measured* finding under rule 7 — you ran a solver and read real output —
+but it is measured **conditional on a declared load case**, and the
+evidence must say so: where the part is held, where load enters, how much,
+which material. State the load case in the finding or the number is
+decoration.
+
+The load case encodes design intent the same way contact-pair
+classification does (must-clear / slip-fit / designed-to-touch), and it
+gets the same treatment: **declared as data, not invented by the
+verifier.** A part's author writes it in a `loadcases.py` beside the
+`.scad` source (format and a worked example in `fea/README.md`;
+predicates derive from the mesh or params — rule 3 applies to load cases
+too). A part that plainly carries something but declares no load case is
+**unverified for stress, and that absence is itself a reportable
+finding** — a verifier inventing plausible-looking boundary conditions on
+the spot produces a number that reads as measured while anchored to
+nothing.
+
+Reading the numbers, the short version (long version in `fea/README.md`):
+capacity comes from the **converged peak** von Mises — solve at two mesh
+sizes, and a peak still climbing between them is a sharp-corner
+singularity to fillet, not a number to quote; field percentiles are never
+a capacity metric (they dilute as the mesh refines). Absolute capacity is
+order-of-magnitude — the trustworthy product is *relative*: this variant
+vs. that one, this corner vs. the rest of the part. And a material swap
+never moves the weak spots (single-material linear elasticity: the stress
+field is essentially independent of stiffness) — it moves the allowable
+and the deflection, so one solve per geometry answers the material
+question for every candidate material.
+
+**Assemblies are the common case, and joints are declared intent too.**
+`fea/assembly.py` solves several parts at once, joined by `Tie` (bonded)
+or `Contact` (bearing, sliding, separating) interfaces declared in an
+`assemblies.py` beside the sources. Which one a joint gets is a statement
+about the design, not a solver setting: a joint the model itself calls
+rigid gets `Tie`; a joint that bears, slides, or can lift gets `Contact`.
+**Tie every joint except the one under investigation** — a full-contact
+assembly is slower, more fragile, and answers no question better than a
+hybrid one. Escalate a joint to `Contact` on evidence, when you need that
+joint's pressure distribution, bearing area, separation or slip; a bonded
+solve already tells you *whether* an interface region is marginal.
+Every part must be grounded (a fixture, a `Tie` chain, or explicit
+`stabilize=True`), and that is checked before the solver runs, because
+ccx's answer to a floating part is a diverging solve that names nothing.
+
+What stress analysis buys the iterate loop: the von Mises map is a
+**simplification oracle**. Regions sitting far below the allowable are
+structurally idle — shell them, pocket them, thin them in the `.scad`
+(staying parametric), re-solve, and assert the peak didn't cross the
+allowable. That turns "can I lighten this?" into a regression test
+instead of a guess.
+
 ## The workflow: `.claude/workflows/design-verify.js`
 
 Runs the two verification methods above as agent fan-outs and ends in a
@@ -160,13 +221,16 @@ themselves.
 
 Phases: **Discover** (find or confirm the target part files) → **Verify
 geometry** (one read-only agent per file: runs this repo's checker if one
-exists, else renders and reasons from that, and explicitly audits for
-duplicated dimensions and missing-feature silent failures) → **Review
-renders** (one agent renders canonical views per file; a second,
-*context-free* agent cold-reads each set of images, per the cold-reading
-rule above) → **Report** (synthesizes every tagged finding into one
-severity-grouped design verdict, refusing to upgrade a reasoned finding
-into a measured-sounding one).
+exists, else renders and reasons from that, explicitly audits for
+duplicated dimensions and missing-feature silent failures, and — when the
+part's project declares a load case in `loadcases.py` — runs the `fea/`
+stress check against it, or reports undeclared intent on a load-bearing
+part as its own finding) → **Review renders** (one agent renders
+canonical views per file; a second, *context-free* agent cold-reads each
+set of images, per the cold-reading rule above) → **Report** (synthesizes
+every tagged finding into one severity-grouped design verdict, refusing
+to upgrade a reasoned finding into a measured-sounding one, and keeping
+every stress number explicitly conditional on its declared load case).
 
 Every finding either verification stage returns is schema-constrained to
 `{claim, method, evidence, severity}` — the workflow's structural

@@ -99,11 +99,12 @@
             done
           '';
 
-        # Mesh analysis for the optics parts: trimesh drives the queries,
-        # manifold3d is the boolean engine (trimesh ships no boolean
-        # backend of its own — without this, .intersection() has nothing
-        # to call). Lets optics/check.py answer "do these two parts
-        # interfere" instead of rendering a picture and squinting at it.
+        # Mesh analysis for CAD parts repo-wide (the per-project check.py
+        # scripts and fea/): trimesh drives the queries, manifold3d is the
+        # boolean engine (trimesh ships no boolean backend of its own —
+        # without this, .intersection() has nothing to call). Lets a checker
+        # answer "do these two parts interfere" instead of rendering a
+        # picture and squinting at it.
         opticsPython = pkgs.python3.withPackages (ps: [
           ps.trimesh
           ps.manifold3d
@@ -113,6 +114,12 @@
           # import time, so they are not optional here.
           ps.rtree
           ps.scipy
+          # fea/ stress pipeline: gmsh turns an exported STL into a
+          # 2nd-order tet mesh; meshio translates it into a CalculiX input
+          # deck (with fealib.py patching around two ccx format traps —
+          # see fea/README.md before touching that translation).
+          ps.gmsh
+          ps.meshio
         ]);
 
         # One firmware image per device, mirroring host/cmd/ -- each is a
@@ -221,6 +228,10 @@
             pkgs.esptool
             pkgs.usbutils
             opticsPython
+            # FE solver for fea/ (linear statics on printed parts). The
+            # solver is `ccx`; there is deliberately no GUI (cgx) here —
+            # the whole pipeline is scripted, see fea/fealib.py.
+            pkgs.calculix-ccx
             pkgs.imagemagick   # montage: canonical-view contact sheets
             # Slicing + inspection for both optics/ and tele/ parts.
             # prusa-slicer's CLI generates the gcode; prusa-gcodeviewer
@@ -242,6 +253,10 @@
             if [ -d mount ] && [ ! -e mount/lib ]; then
               ln -sfn ${bosl2Lib} mount/lib
               echo "mount/lib -> Nix store (BOSL2, pinned via flake inputs)"
+            fi
+            if [ -d riser ] && [ ! -e riser/lib ]; then
+              ln -sfn ${bosl2Lib} riser/lib
+              echo "riser/lib -> Nix store (BOSL2, pinned via flake inputs)"
             fi
             ln -sfn ${firmwareGoroot} firmware/.gopls-goroot
           '';
