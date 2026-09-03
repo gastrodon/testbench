@@ -7,8 +7,18 @@ not re-break things that were already fixed once.
 ## What this is
 
 Firmware + host client turning an Arduino Uno into a serial GPIO probe
-(`firmware/`, `host/`), plus an unrelated LEGO/printed-collar accessory
-project (`optics/`) that happens to live in the same repo. Part of the
+(`firmware/`, `host/`), plus two unrelated 3D-printed projects that
+happen to live in the same repo: a LEGO/printed-collar accessory project
+(`optics/`), and a motorized telescope pan/tilt mount (`mount/`, EVA-296)
+driven by GT2 belts off the Afinia-salvage steppers.
+
+`mount/README.md` is current and worth reading before touching anything
+there -- especially the note that the salvaged steppers carry GT2
+PULLEYS, not gears. `mount/nema17.scad` is deliberately self-contained
+(no `params.scad`, no telescope) so it can be copied into the other
+builds running on the same four motors.
+
+Part of the
 [Shop testbench](https://linear.app/gastrodon/document/testbench-agent-operable-hardware-bench-41d0596a0f66)
 — the bench camera and udev plumbing live in `module/hw-bench.nix` in
 [gastrodon/dotfiles](https://github.com/gastrodon/dotfiles), not here.

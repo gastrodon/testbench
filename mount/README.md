@@ -33,9 +33,9 @@ limiting factor — backlash and mount rigidity will be.
 | `base.scad` | **ground.** Tripod plate (captured 1/4"-20 nut), azimuth post + thrust face, azimuth stepper on radial tension slots | — |
 | `az_table.scad` | rotating deck with the 160T azimuth wheel integral to it | azimuth |
 | `yoke.scad` | the single tine that goes between the telescope's brackets; carries the altitude stepper | azimuth |
-| `alt_sleeve.scad` | shoulder bushing on the altitude axis | telescope |
-| `alt_rotor.scad` | 160T altitude wheel + hub that clamps to the near bracket | telescope |
-| `gt2.scad` | pulley generator | — |
+| `alt_rotor.scad` | 160T altitude wheel **and its integral stepped axle** | telescope |
+| `nema17.scad` | the stepper, as a standalone copy-anywhere component | — |
+| `gt2.scad` | pulley generator, plus a printable pulley for a D-shaft | — |
 | `gt2_coupon.scad` | tooth-profile test coupon, print this first | — |
 | `params.scad` | **every dimension.** No number is restated anywhere else | — |
 | `assembly.scad` | the posed mechanism; the only file that knows how things move | — |
@@ -43,49 +43,57 @@ limiting factor — backlash and mount rigidity will be.
 | `check.py` | measured verification | — |
 | `animate.scad` / `animate.sh` | range-of-motion animation | — |
 | `views.sh` | orthographic review renders | — |
+| `build.sh` | render every part, `--hardwarnings` | — |
 
 ## How the telescope actually attaches
 
-The brief's description — "the screw goes sideways" — is the alt-az pivot.
-Two brackets face each other under the tube: one plain hole, one brass
-**1/4"-20** insert (measured, EVA-319), bore centreline 9.25 mm above the
-tube's bottom surface. **That screw axis is the altitude axis.**
+The brief's "the screw goes sideways" is the alt-az pivot. Two brackets
+face each other under the tube: one plain hole, one brass **1/4"-20**
+insert. **That screw axis is the altitude axis.** Our tine is the meat in
+the telescope's sandwich, not the other way round.
 
-Our tine is the meat in the telescope's sandwich, not the reverse:
+The wheel and its shaft are **one part**, inserted from the **threaded**
+side, diameter decreasing monotonically from wheel to tip:
 
 ```
-[1/4-20 bolt head]
-  -> alt_rotor hub          clamped, turns with the scope
-  -> telescope NEAR bracket plain clearance hole
-  -> alt_sleeve             clamped, turns with the scope
-     ... yoke tine rides FREE on the sleeve OD ...
-  -> telescope FAR bracket  1/4-20 brass insert, bolt threads in here
+[160T wheel]==[1/4-20 thread]==[journal 4.8]==[M4 tip]--> lock nut
+                     |               |            |
+            threaded bracket     yoke tine    plain 6.25 hole
 ```
 
-`alt_sleeve` is the part that makes this a mechanism instead of a statue.
-Tightening the pivot bolt pulls the brackets together and clamps whatever
-is between them — if the tine were in that clamp path the altitude axis
-would be locked solid. The sleeve is 0.3 mm longer than the tine is thick,
-so the clamp load goes bracket → sleeve → bracket and the tine spins free.
+The monotonic taper is what makes it assemblable: everything inboard of
+the thread has to pass through the insert's **5.2 mm** bore on the way in.
+That one number caps the journal.
 
-A locked axis is geometrically indistinguishable from a working one: it
-interferes with nothing and renders beautifully. Hence `assembly.scad`
-names `base` as ground and derives every other pose from it, and `check.py`
-sweeps altitude rather than checking one pose.
+Three things this buys over a separate bolt:
 
-Anti-rotation: bolt friction alone would slip and lose steps silently, so
-the rotor hub has a **lip** that hooks over the near bracket's outer edge.
-Its shape depends on two unmeasured bracket dimensions — see below.
+1. **Torque goes through a thread**, not through bolt-clamp friction plus
+   a printed hook catching a bracket edge.
+2. **The shoulder is integral.** The journal/tip step bears on the far
+   bracket's inner face, so clamp load runs thread → axle → step → far
+   bracket and never touches the tine. Without it the lock nut squeezes
+   the tine and the axis seizes — and a seized axis interferes with
+   nothing and passes every geometric check ever written.
+3. **It resolved the 6.25 mm blocker.** A 1/4-20 shank does not fit the
+   measured plain hole. Entering from the threaded side means only the
+   4 mm tip ever goes there.
 
-## The tightest budget in the design: 9.25 mm around the pivot
+The thin sections carry no drive torque — the thread sits immediately
+inboard of the wheel, so torque transfers to the telescope right there.
+The tip is domed so it can find three coaxial holes blind.
+
+The lock nut is load-bearing, not tidy: drive torque reacts across the
+1/4-20 and the altitude axis reverses constantly, so half the reversals
+tend to unscrew it.
+
+## The tightest budget in the design: 10.25 mm around the pivot
 
 The tube's underside sweeps a cylinder about the altitude axis, and with
-`tube_bottom_above_pivot` at the assumed 9.25 mm that cylinder is *tiny*.
+`tube_bottom_above_pivot` at the assumed 10.25 mm that cylinder is *tiny*.
 **Everything the yoke puts inside the tube's width has to fit under it, at
 every altitude angle** — not just at 0° and 90°. That single constraint
-sets the pivot boss diameter (16.5 mm, leaving only a 2.5 mm wall over the
-sleeve bore) and forces the motor arm's inboard beam to duck under a trim
-plane. Two separate features violated it independently before it was
+sets the pivot boss diameter and forces the motor arm's inboard beam to
+duck under a trim plane. Two separate features violated it independently before it was
 written down once.
 
 It also drives the altitude wheel outboard. A 103 mm wheel on a pivot that
@@ -95,9 +103,9 @@ surface, which needs a 17 mm hub. That is a long cantilever carrying a big
 wheel and is the least rigid thing in the assembly.
 
 `tube_bottom_above_pivot` is ASSUMED at the worst case and is deliberately
-*not* the same number as the measured `alt_bore_c_to_bottom` — that one is
-measured against the mount lug's bottom face, and the brackets hang below
-the tube. Measuring it is likely to relax all of the above at once.
+*not* the same number as the measured `alt_bore_c_to_bottom` (10.25) —
+that one is the axle above the mount's base plate, and the brackets hang
+below the tube. Measuring it is likely to relax all of the above at once.
 
 ## Why the yoke is tall
 
@@ -110,36 +118,45 @@ rigid mount; that tradeoff is real and is eva's call, not a defect.
 ## Measure these before printing anything large
 
 `params.scad` tags every constant `MEASURED` / `ASSUMED` / `STANDARD` /
-`CHOSEN` / `DERIVED`. The `ASSUMED` ones are guesses. In rough order of how
-much damage a wrong guess does:
+`CHOSEN` / `DERIVED`. Most of the interface is now measured. What is left,
+in order of how much damage a wrong guess does:
 
-1. **`belt_loop_len` (400 mm assumed).** Only one *closed* GT2 loop is on
-   hand and its length was never recorded. A closed loop fixes the centre
-   distance absolutely — at 400 mm it comes out **100.1 mm**, which is why
-   both motors sit so far out. A 320 mm loop would put them at ~60 mm and
-   make the whole rig dramatically more compact. **Measure this first; it
-   changes the layout more than anything else here.** Loops shorter than
-   ~306 mm cannot wrap this pulley pair at all, and `belt_centre_dist()`
-   returns `undef` — asserted on, not silently propagated.
-2. **The five bracket dimensions** — `bracket_gap`, `bracket_t`,
-   `bracket_w`, `bracket_free_r`, `bracket_clear_d`. These set the tine
-   thickness, the sleeve length, and whether the anti-rotation lip grips
-   anything at all.
-3. **`tube_bottom_above_pivot`** — see the section above; it is the
-   binding constraint on the yoke's whole upper half.
-4. **`motor_pulley_z`** — how high the 20T pulley's belt face sits above
-   the motor faceplate. A belt drive absolutely requires coplanar pulleys.
-5. **`tube_len_behind`** — decides the altitude ceiling outright.
-6. **`belt_width`**, **`tube_od`**.
+1. **`belt_loop_len` (400 mm assumed).** Still the single biggest unknown.
+   Only one *closed* GT2 loop is on hand and its length was never
+   recorded. A closed loop fixes the centre distance **absolutely** — at
+   400 mm it comes out **100.1 mm**, which is why both motors sit so far
+   out. A 320 mm loop would put them at ~60 mm and make the whole rig
+   dramatically more compact. Loops under ~306 mm cannot wrap this pulley
+   pair at all; `belt_centre_dist()` returns `undef` and it is asserted
+   on, not silently propagated.
+   The tension slots are a **trim, not a range** — ±1 tooth of
+   measurement error plus print shrink. If the real loop is far off,
+   change the parameter; do not stretch the slot to cover it.
+2. **`tube_len_behind` (320 mm assumed)** — decides the altitude ceiling
+   outright. Order of magnitude confirmed by eye, so the ~52° ceiling is
+   a real limit rather than an artefact, but the exact number is not.
+3. **`tube_bottom_above_pivot` (10.25 mm assumed, worst case)** — the
+   binding constraint on the yoke's whole upper half. Measuring it likely
+   *relaxes* three things at once.
+4. **`bracket_w`, `bracket_free_r`** — the last two bracket unknowns.
+5. **`belt_width`**, **`tube_od`**.
 
-The stepper is now measured and lives in `nema17.scad` as a standalone,
-copy-anywhere module. Its D-cut depth and flat length are **deferred, not
-pending** — nothing in this build reads them, because the salvaged
-pulleys are existing metal parts and nothing we print mates to a shaft.
-They matter the day `gt2_pulley_on_shaft()` gets used for real.
+**Already measured off the real hardware** (eva, 2026-09-02) — these were
+on this list and have come off it:
 
-EVA-297 already lists the shaft diameter and stepper spec labels as
-open TODOs — this build needs them.
+| | |
+| -- | -- |
+| bracket gap / thickness / plain hole | 16.5 / 4.9 / 6.25 |
+| axle centreline above the base plate | 10.25 |
+| stepper body | 42.3 frame, **33** deep |
+| shaft | **5.0 × 12**, flat chord 3.5 → across-flat 4.285 |
+| pulley | 8 mm tall, belt-face centre **8 mm** off the faceplate |
+
+The stepper lives in `nema17.scad` as a standalone, copy-anywhere
+component — the same four salvaged motors are headed for the camera dome,
+the laser gimbal and the microscope rebuild. Its **flat length** is
+*deferred, not pending*: nothing here reads it, and it matters the day
+`gt2_pulley_on_shaft()` is used for real.
 
 ## Altitude reach: ~52 degrees, measured
 
@@ -204,16 +221,21 @@ restates nothing.
 
 ## Current verdict
 
-`check.py`, last run: **22 part pairs classified, 0 unchecked.** All
-geometry passes — the 8:1 ratio is exact, the wheel carries its 160
-grooves (counted off the mesh, not assumed), the belt solve round-trips
-to 0.001 mm, the thrust face and the altitude journal both show real
-distributed contact.
+`check.py`, last run: **17 pairs classified, 0 unchecked, 3 failures** —
+and all three are one issue. Everything mechanical passes, measured:
 
-The only remaining failures are the **altitude reach** group —
-`telescope` against `yoke` / `az_table` / `base` at 60° and beyond. They
-are one issue with one cause, `tube_len_behind`, and they are left
-failing on purpose. Measured ceiling: **~52°**. See above.
+| | |
+| -- | -- |
+| reduction | **exactly 8:1** — integer tooth counts |
+| wheel | **160 grooves**, counted off the mesh |
+| altitude bearing | runs at **0.250 mm** across the whole sweep |
+| rotor → telescope | clamped; the 42.9 mm³ "overlap" **is** the thread engagement (analytic annulus 42.7) |
+| thrust face | seated, 17.9% contact patch |
+| belt solve | round-trips to 0.001 mm |
+
+The three failures are the **altitude reach** group — `telescope` against
+`yoke` / `az_table` / `base` at 60° and beyond. One issue, one cause
+(`tube_len_behind`), left failing on purpose. Measured ceiling: **~52°**.
 
 ## Open items, not silently designed around
 
@@ -225,9 +247,12 @@ failing on purpose. Measured ceiling: **~52°**. See above.
   `gt2_coupon.scad` and roll the real belt on it before committing hours
   of filament to a 160T wheel — the same settle-it-by-print method the
   microscope build used on its M12 thread.
-- **The anti-rotation lip is unvalidated** against a bracket nobody has
-  measured. Its depth is bounded ABOVE, not below: the jaws sweep an
-  annulus as the scope tilts, so reaching too far past the bracket makes
-  them grind the tine on every altitude move.
+- **The 1/4-20 male thread is unproven.** It is now the only
+  load-bearing thread in the mechanism, and it is modelled as a plain
+  cylinder at major diameter rather than a cut thread form — deliberately,
+  because a modelled thread would look authoritative and prove nothing.
+  It needs its own coupon before the real wheel is printed.
+- **`nema17_flat_len` is deferred, not pending.** Nothing in this build
+  reads it; it matters the day `gt2_pulley_on_shaft()` is used for real.
 - **No altitude limit switch or homing datum.** Steppers are open-loop;
   something has to define where 0° is.
