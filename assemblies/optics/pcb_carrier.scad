@@ -189,6 +189,35 @@ module rack_fin() {
         cube([fin_t, fin_inner - fin_outer, rack_len]);
 }
 
+// PRINT-ONLY, sacrificial. As modelled, the fin (and the rack riding on
+// it) appears off the round tube at full depth in one step -- a flat
+// shelf with nothing under it, printed_len_z (Z) mapping to the rack's
+// travel axis and the whole fin cross-section arriving at once. That's a
+// 90-degree overhang from the tube surface, not a taper.
+//
+// This hulls the fin's own bottom cross-section up against a sliver
+// pinned at fin_inner (the tube wall) one fin-depth below it, so the
+// added wedge's outer face runs at 45 degrees -- self-supporting -- from
+// the tube surface up to the real fin footprint. It is oversized on
+// purpose: it bulges past the tube's true OD over that stretch, which is
+// exactly the region the base's sleeve bore expects a plain cylinder, so
+// this needs to be pared back by hand to true OD before the carrier goes
+// in the sleeve. The true tooth profile (pressure angle) is untouched --
+// this only fills air that was empty before, it doesn't reshape a tooth.
+module rack_fin_lead_in() {
+    fin_inner = -(tube_od / 2 - 1);
+    fin_outer = rack_y + rack_backing;
+    fin_depth = fin_inner - fin_outer;       // same reach as rack_fin()
+    z_top = rack_z_center - rack_len / 2;    // rack_fin()'s own bottom
+    z_bot = z_top - fin_depth;               // 45 deg: ramp run == reach
+    hull() {
+        translate([-fin_t / 2, fin_inner - 0.01, z_bot])
+            cube([fin_t, 0.01, 0.01]);
+        translate([-fin_t / 2, fin_outer, z_top - 0.01])
+            cube([fin_t, fin_inner - fin_outer, 0.01]);
+    }
+}
+
 module focus_rack() {
     // length +X -> +Z (travel), teeth +Z -> -Y (outward, toward the
     // pinion), thickness +Y -> -X. See the note in git history: an
@@ -209,6 +238,7 @@ module pcb_carrier() {
         mounting_boss();
         carrier_tube();
         rack_fin();
+        rack_fin_lead_in();
     }
     focus_rack();
 }
