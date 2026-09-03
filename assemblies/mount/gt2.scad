@@ -98,7 +98,7 @@ function gt2_envelope_h(face = undef, flange = true) =
 // reproduce to make our own. Modelling the pulley as part of the motor
 // hides the only interface that matters.
 //
-// The bore and flat come from nema17.scad, beside the shaft they mate
+// The bore and flat come from ../../lib/motors/nema17.scad, beside the shaft they mate
 // with, so the two cannot drift (rule 3). Nothing about the D is
 // restated here.
 //

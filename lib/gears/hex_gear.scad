@@ -15,8 +15,8 @@
 // Deliberately self-contained apart from the gear library, so it can be
 // copied into the next mechanism that needs one.
 
-include <lib/BOSL2/std.scad>
-include <lib/BOSL2/gears.scad>
+include <../BOSL2/std.scad>
+include <../BOSL2/gears.scad>
 
 module hex_gear(mod, teeth, face, hex_af, fit = 0.35, pa = 20,
                 backlash = 0.15, spin = 0) {

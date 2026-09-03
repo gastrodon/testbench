@@ -23,7 +23,7 @@ FAIL in this project's history came from exactly that (rule 4).
 Findings are tagged MEASURED because they are: each one is computed from a
 real mesh produced by a full CGAL render, not inferred from source.
 
-    nix develop -c python3 mount/check.py
+    nix develop -c python3 assemblies/mount/check.py
 """
 
 import json

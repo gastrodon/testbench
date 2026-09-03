@@ -34,7 +34,7 @@ limiting factor — backlash and mount rigidity will be.
 | `az_table.scad` | rotating deck with the 160T azimuth wheel integral to it | azimuth |
 | `yoke.scad` | the single tine that goes between the telescope's brackets; carries the altitude stepper | azimuth |
 | `alt_rotor.scad` | 160T altitude wheel **and its integral stepped axle** | telescope |
-| `nema17.scad` | the stepper, as a standalone copy-anywhere component | — |
+| `../../lib/motors/nema17.scad` | the stepper, as a standalone copy-anywhere component | — |
 | `gt2.scad` | pulley generator, plus a printable pulley for a D-shaft | — |
 | `gt2_coupon.scad` | tooth-profile test coupon, print this first | — |
 | `params.scad` | **every dimension.** No number is restated anywhere else | — |
@@ -152,8 +152,8 @@ on this list and have come off it:
 | shaft | **5.0 × 12**, flat chord 3.5 → across-flat 4.285 |
 | pulley | 8 mm tall, belt-face centre **8 mm** off the faceplate |
 
-The stepper lives in `nema17.scad` as a standalone, copy-anywhere
-component — the same four salvaged motors are headed for the camera dome,
+The stepper lives in `../../lib/motors/nema17.scad` as a standalone,
+copy-anywhere component — the same four salvaged motors are headed for the camera dome,
 the laser gimbal and the microscope rebuild. Its **flat length** is
 *deferred, not pending*: nothing here reads it, and it matters the day
 `gt2_pulley_on_shaft()` is used for real.

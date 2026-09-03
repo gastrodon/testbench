@@ -64,7 +64,7 @@ module telescope_proxy() {
 }
 
 module nema17_proxy() {
-    // Delegates to nema17.scad rather than redrawing a box. The motor is a
+    // Delegates to ../../lib/motors/nema17.scad rather than redrawing a box. The motor is a
     // shared component now, and its pulley is a SEPARATE call because that
     // is how it is physically attached -- clamped to a D-shaft, not part
     // of the casting.

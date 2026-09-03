@@ -150,13 +150,13 @@ area** (the separation signal), **peak and mean contact pressure**,
   of fixed nodes for peak-finding. Stress *at* a support needs a modelled
   support, not a `*BOUNDARY` card.
 
-Worked example (prototype run, 2026-09-03, `riser/build/yoke.stl`): under
+Worked example (prototype run, 2026-09-03, `assemblies/riser/build/yoke.stl`): under
 50 N pushed down on the tine tops with the mortise base fixed, the weak
 spot was **not** the slender tines but the sharp top corners of the
 central mortise slots (y ≈ ±15.5, z ≈ 88) — peak ~80 MPa, stable across
 three mesh refinements, well past PLA yield. Two fillets fix it; a
 thicker part wouldn't. (Demonstration-grade BCs: real load enters at the
-trunnion bores. Declare the real case in `riser/loadcases.py` before
+trunnion bores. Declare the real case in `assemblies/riser/loadcases.py` before
 quoting yoke numbers.)
 
 ## ccx/meshio traps this pipeline works around (do not rediscover)

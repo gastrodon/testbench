@@ -16,7 +16,7 @@
 //
 // ---------------------------------------------------------------------
 
-include <nema17.scad>   // reusable stepper component, no telescope in it
+include <../../lib/motors/nema17.scad>   // reusable stepper component, no telescope in it
 
 // PROVENANCE TAGS -- every constant below carries one:
 //   MEASURED  someone put a caliper on the real object; source cited
@@ -303,7 +303,7 @@ would clamp the tine and seize the altitude axis");
 // EVA-297: three "belt-axis" steppers carry the 20T pulleys on ~15mm
 // D-shafts. The fourth (extruder) has a ~4mm shaft and is explicitly NOT
 // a drop-in -- do not design for it.
-// The motor itself now lives in nema17.scad -- a self-contained module
+// The motor itself now lives in ../../lib/motors/nema17.scad -- a self-contained module
 // with no opinion about telescopes, because the same four salvaged motors
 // are headed for the camera dome, the laser gimbal and the microscope
 // rebuild. These are thin aliases so the rest of this directory keeps
@@ -316,7 +316,7 @@ nema_shaft_d    = nema17_shaft_d;
 nema_screw_d    = nema17_screw_d;
 
 // Standoff of the pulley's BELT-FACE CENTRE above the faceplate -- NOT
-// the pulley's own 8mm height. nema17.scad owns the derivation and the
+// the pulley's own 8mm height. ../../lib/motors/nema17.scad owns the derivation and the
 // assumption behind it (flush to the shaft end vs seated against the
 // faceplate, a 4mm difference that decides belt coplanarity).
 motor_pulley_z  = nema17_pulley_z;

@@ -7,21 +7,32 @@ not re-break things that were already fixed once.
 ## What this is
 
 Firmware + host client turning an Arduino Uno into a serial GPIO probe
-(`firmware/`, `host/`), plus three unrelated 3D-printed projects that
-happen to live in the same repo:
+(`firmware/`, `host/`), plus four largely-independent 3D-printed projects
+under `assemblies/`, sharing a `lib/` of reusable OpenSCAD components:
 
-- `optics/` — a prime-focus microscope camera, superseding the earlier
-  LEGO/eyepiece-collar plan that older text in `optics/README.md` still
-  describes.
-- `tele/` — the prime-focus telescope nosepiece (EVA-319), the same
-  bare-sensor principle pointed at a 0.965" refractor.
-- `mount/` — a motorized alt-az pan/tilt mount for that telescope
-  (EVA-296), driven by GT2 belts off the Afinia-salvage steppers.
-  `mount/README.md` is current and worth reading first, especially the
-  part where the salvaged steppers turn out to carry GT2 PULLEYS, not
-  gears. `mount/nema17.scad` is deliberately self-contained (no
-  `params.scad`, no telescope) so it can be copied into the other builds
-  running on the same four motors.
+- `assemblies/optics/` — a prime-focus microscope camera, superseding the
+  earlier LEGO/eyepiece-collar plan that older text in
+  `assemblies/optics/README.md` still describes.
+- `assemblies/tele/` — the prime-focus telescope nosepiece (EVA-319), the
+  same bare-sensor principle pointed at a 0.965" refractor.
+- `assemblies/mount/` — a motorized alt-az pan/tilt mount for that
+  telescope (EVA-296), driven by GT2 belts off the Afinia-salvage
+  steppers. `assemblies/mount/README.md` is current and worth reading
+  first, especially the part where the salvaged steppers turn out to
+  carry GT2 PULLEYS, not gears.
+- `assemblies/riser/` — a manual two-axis tripod riser/gimbal that goes
+  between an ordinary tripod stud and `assemblies/mount/`.
+
+`lib/` holds the components genuinely shared or obviously general-use
+across those assemblies — `lib/motors/nema17.scad` (the salvaged stepper,
+deliberately self-contained: no `params.scad`, no telescope, so it can be
+copied into the other builds running on the same four motors),
+`lib/gears/hex_gear.scad` (a spur gear with a hex bore), and
+`lib/grips/knob.scad` / `lib/grips/handle.scad` (hand-grip components).
+Everything else stays inside the assembly directory that uses it — an
+assembly owns its own meshes unless a part is a clear candidate for reuse
+elsewhere, the way `nema17.scad` was pulled out despite (at the time) only
+`mount/` using it.
 
 Part of the
 [Shop testbench](https://linear.app/gastrodon/document/testbench-agent-operable-hardware-bench-41d0596a0f66)
@@ -63,7 +74,7 @@ Part of the
   before the include line** — the included file's own top-level
   assignment silently wins (console warning only, easy to miss). The only
   override that reliably sticks is `-D` on the command line. (verified by
-  direct test, see `optics/README.md`)
+  direct test, see `assemblies/optics/README.md`)
 - **`-D` does not override OpenSCAD's special (`$`-prefixed) variables.**
   `-D '$t=0.4'` is silently ignored — frames come out byte-identical. The
   only way to drive `$t` is `--animate N`. Cost a confusing round of
@@ -104,7 +115,7 @@ Part of the
   goes positive, so separation must be read from bearing area, not from
   an opening gap. `fea/README.md`, and `fea/check_assembly.py` is the
   regression test that pins both.
-- **`optics/lib` is a Nix-store symlink created by the devShell hook and
+- **`assemblies/optics/lib` is a Nix-store symlink created by the devShell hook and
   Nix garbage-collects it.** `Can't open include file 'lib/BOSL2/std.scad'`
   means only this; `nix develop` recreates it.
 - **`WARNING: Can't open include file 'lib/gears/gears.scad'` is expected
@@ -125,7 +136,7 @@ Part of the
 - **A gitignore pattern with a trailing slash (`lib/`) matches plain
   directories but not a symlink pointing at one.** If a Nix-managed
   symlink is showing up as untracked, check for this before assuming
-  something else is wrong. (`optics/.gitignore`)
+  something else is wrong. (`assemblies/optics/.gitignore`)
 - **`nix run .#<pkg>` assumes the binary is named after the package's
   `pname`.** If the actual binary is named differently (Go names it after
   the `cmd/` subdirectory), `nix run` fails to find it unless
@@ -167,7 +178,7 @@ Part of the
   not found") until it's at least `git add`ed — doesn't need to be
   committed, just staged.
 
-## Working on geometry (`optics/`)
+## Working on geometry (`assemblies/optics/`)
 
 **OpenSCAD is write-only: it renders geometry but cannot be asked
 questions about it.** You cannot ask whether two parts touch, how far
@@ -177,13 +188,13 @@ before any boolean runs. So there is a separate query layer, and the
 workflow below exists because four real defects shipped past visual
 review before it did.
 
-Full write-up with the reasoning: **`optics/model-analysis.md`**. Read it
+Full write-up with the reasoning: **`assemblies/optics/model-analysis.md`**. Read it
 before extending `check.py`.
 
 ### Validate with `check.py`, not with your eyes
 
 ```
-nix develop --command python optics/check.py
+nix develop --command python assemblies/optics/check.py
 ```
 
 trimesh (queries) + manifold3d (booleans). It answers: does anything
@@ -237,21 +248,21 @@ makes tangency ambiguous.
 ```bash
 # canonical still (rot: top 0,0,0 · front 90,0,0 · right 90,0,270 · iso 55,0,25)
 openscad -o view.png --imgsize=900,900 --projection=ortho \
-  --autocenter --viewall --camera=0,0,0,90,0,0,140 optics/assembly.scad
+  --autocenter --viewall --camera=0,0,0,90,0,0,140 assemblies/optics/assembly.scad
 
 # contact sheet of several views (montage's font lookup can fail; +append works)
 magick a.png b.png c.png -background white +append sheet.png
 
 # animation: --animate is the ONLY way to drive $t; camera must be FIXED
 openscad --animate 300 --imgsize=900,1160 --projection=perspective \
-  --camera=0,0,28,68,0,0,540 -o /tmp/frames/f.png optics/animate.scad
+  --camera=0,0,28,68,0,0,540 -o /tmp/frames/f.png assemblies/optics/animate.scad
 ffmpeg -framerate 30 -i /tmp/frames/f%05d.png -c:v libx264 -pix_fmt yuv420p out.mp4
 ```
 
-`optics/animate.scad` owns only choreography (turntable + explode +
+`assemblies/optics/animate.scad` owns only choreography (turntable + explode +
 focus sweep); geometry and kinematics come from the part files unchanged,
 so a rendered animation shows the *real* mechanism rather than a posed
-one. `optics/assembly.scad` exposes `focus_t` / `explode` /
+one. `assemblies/optics/assembly.scad` exposes `focus_t` / `explode` /
 `animate_focus` as Customizer sliders for interactive use.
 
 Use `#` to highlight a suspect part and `%` to ghost its neighbours —
@@ -280,7 +291,7 @@ nix build .#probe && result/bin/probe /dev/ttyACM0 ping   # needs real hardware
 nix build .#firmware-probe                                  # then flash + ping to confirm
 nix build .#firmware-light-breathe                          # then flash + watch it breathe
 nix build .#optics-calibration     # real OpenSCAD render, ~1 min
-nix develop --command python optics/check.py   # geometry: interference + gear mesh
+nix develop --command python assemblies/optics/check.py   # geometry: interference + gear mesh
 nix develop -c bash -c 'cd firmware && GOROOT=$(pwd)/.gopls-goroot GOFLAGS=-tags=avr,baremetal,linux,arm,atmega328p,atmega,avr5,arduino_uno,tinygo,purego,osusergo,math_big_pure_go,gc.conservative,scheduler.none,serial.uart,tinygo.unicore gopls check ./cmd/probe/main.go ./cmd/light-breathe/main.go'
 ```
 

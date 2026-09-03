@@ -61,7 +61,7 @@ a different audience and a different render mode.
 ```
 cd ~/code/testbench
 nix build .#optics-stl              # every printable part, pre-oriented -> result/*.stl
-nix develop --command python3 optics/check.py
+nix develop --command python3 assemblies/optics/check.py
 ```
 
 `check.py` is the thing that actually proves the design, not a render.
@@ -78,7 +78,7 @@ especially: **on a FAIL, ask "is the checker right?" before touching the
 CAD.** Every false FAIL so far has come from the checker restating a
 number a `.scad` file already owns, not from a real design bug.
 
-To look instead of prove: `openscad optics/assembly.scad`, Window >
+To look instead of prove: `openscad assemblies/optics/assembly.scad`, Window >
 Customizer, `focus_t` (0..1 along the travel) and `explode` (0..1). Use
 Preview (F5) — a full render (F6) discards `color()`. `optics/lib` must
 exist first; it's a symlink into the Nix store that `nix develop`'s

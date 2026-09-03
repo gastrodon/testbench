@@ -2,3 +2,4 @@ lib
 *.stl
 *.png
 __pycache__/
+*.gcode

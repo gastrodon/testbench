@@ -45,7 +45,7 @@ module nema17_proxy() {
     // Centred on the SHAFT axis, which is where the pulley is. Drawing it
     // from a corner instead puts the whole 42mm body 21mm off in two
     // directions, and every clearance measured against it is then wrong.
-    // Delegates to nema17.scad rather than redrawing a box. The motor is
+    // Delegates to ../../lib/motors/nema17.scad rather than redrawing a box. The motor is
     // a shared component now, and its pulley is a SEPARATE call because
     // that is how it is physically attached -- clamped to the shaft, not
     // part of the casting.

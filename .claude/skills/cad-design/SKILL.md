@@ -9,10 +9,10 @@ Model parametrically, verify geometrically, look at it, iterate. That loop
 is the whole skill — everything here is either part of the loop or the
 tooling that runs it.
 
-This is distilled from building the prime-focus microscope in `optics/`
-(Linear project "Shop", `optics/model-analysis.md`, the Linear doc
-"Printable mechanisms", `optics/check.py`, `optics/AGENTS.md`). Treat
-`optics/` as a worked example, not the subject — this skill is for the
+This is distilled from building the prime-focus microscope in `assemblies/optics/`
+(Linear project "Shop", `assemblies/optics/model-analysis.md`, the Linear doc
+"Printable mechanisms", `assemblies/optics/check.py`, `assemblies/optics/AGENTS.md`). Treat
+`assemblies/optics/` as a worked example, not the subject — this skill is for the
 next part someone models, in this repo or another one built the same way.
 
 ## Design work is a swarm; printing is not — and that's why they're two skills
@@ -47,7 +47,7 @@ computed before any boolean runs, not measurements of the solid that
 actually results. You find out by building a query layer beside the
 model, or you ship whatever is invisible from the outside.
 
-`optics/model-analysis.md` has the full account, including four real
+`assemblies/optics/model-analysis.md` has the full account, including four real
 defects (wrong center distance, mis-facing rack teeth, a gear floating out
 of plane, a pinion attached to nothing) that survived rendered review and
 were only caught by an orthographic view or a scripted measurement. None
@@ -242,7 +242,7 @@ just describe the part(s) and ask for a workflow — Claude can also invoke
 it as `/design-verify` once you've saved it (`/workflows`, select the run,
 press `s`), from either `.claude/workflows/` (project) or
 `~/.claude/workflows/` (personal). Pass a specific file list via `args`
-(`Run /design-verify on optics/focus_pinion.scad, optics/pcb_carrier.scad`)
+(`Run /design-verify on assemblies/optics/focus_pinion.scad, assemblies/optics/pcb_carrier.scad`)
 or omit it to let the Discover phase find every top-level part file
 itself.
 

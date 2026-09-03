@@ -20,4 +20,9 @@ result-*
 .claude/worktrees/
 
 /build_native/
-optics/tmp*.scad
+assemblies/optics/tmp*.scad
+
+# lib/BOSL2 is a Nix-store symlink (see flake.nix shellHook), not a plain
+# directory -- no trailing slash, per the gotcha in AGENTS.md: a pattern
+# with one matches a real directory but not a symlink pointing at one.
+/lib/BOSL2

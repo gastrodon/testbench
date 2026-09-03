@@ -14,7 +14,7 @@
     # Threads (threading.scad) + gears/racks (gears.scad) for the
     # prime-focus microscope build — real helical threads and a proper
     # rack-and-pinion instead of hand-rolled geometry. The telescope
-    # nosepiece (tele/) and the pan/tilt mount (mount/) use the same pin,
+    # nosepiece (assemblies/tele/) and the pan/tilt mount (assemblies/mount/) use the same pin,
     # kept identical on purpose rather than three BOSL2s to reconcile.
     bosl2 = {
       url = "github:BelfrySCAD/BOSL2/fcfce7c763863d8e66d5f36a551d11129ec1a607";
@@ -28,7 +28,7 @@
         pkgs = nixpkgs.legacyPackages.${system};
 
         # Assembles the vendored libraries into the lib/ layout
-        # optics/*.scad expects. Technic.scad went with the pin breakout —
+        # assemblies/optics/*.scad expects. Technic.scad went with the pin breakout —
         # nothing models LEGO geometry any more.
         opticsLib = pkgs.runCommand "testbench-optics-lib" { } ''
           mkdir -p $out
@@ -36,7 +36,7 @@
           cp -r ${bosl2} $out/BOSL2
         '';
 
-        # A lib/ dir containing just BOSL2. Both tele/ and mount/ need
+        # A lib/ dir containing just BOSL2. Both assemblies/tele/ and assemblies/mount/ need
         # exactly this and nothing else — no Technic, no PELA, no LEGO
         # interface on either. They had grown a derivation each, byte-for-
         # byte identical, which is the duplication rule 3 warns about
@@ -166,7 +166,7 @@
             }
             ''
               mkdir -p build $out
-              cp ${./optics}/*.scad build/
+              cp ${./assemblies/optics}/*.scad build/
               ln -s ${opticsLib} build/lib
 
               emit () {  # name, source file, body (already oriented)
@@ -204,7 +204,7 @@
             { nativeBuildInputs = [ pkgs.openscad ]; }
             ''
               mkdir -p build $out
-              cp ${./tele}/*.scad build/
+              cp ${./assemblies/tele}/*.scad build/
               ln -s ${bosl2Lib} build/lib
               cat > build/_nosepiece.scad <<EOF
               use <nosepiece.scad>
@@ -233,7 +233,7 @@
             # the whole pipeline is scripted, see fea/fealib.py.
             pkgs.calculix-ccx
             pkgs.imagemagick   # montage: canonical-view contact sheets
-            # Slicing + inspection for both optics/ and tele/ parts.
+            # Slicing + inspection for both assemblies/optics/ and assemblies/tele/ parts.
             # prusa-slicer's CLI generates the gcode; prusa-gcodeviewer
             # opens a sliced file to step through layer by layer, which
             # is the only way to actually SEE a toolpath before
@@ -242,21 +242,29 @@
             pkgs.prusa-slicer
           ];
           shellHook = ''
-            if [ ! -e optics/lib ]; then
-              ln -sfn ${opticsLib} optics/lib
-              echo "optics/lib -> Nix store (pinned via flake inputs, see flake.nix)"
+            if [ ! -e assemblies/optics/lib ]; then
+              ln -sfn ${opticsLib} assemblies/optics/lib
+              echo "assemblies/optics/lib -> Nix store (pinned via flake inputs, see flake.nix)"
             fi
-            if [ -d tele ] && [ ! -e tele/lib ]; then
-              ln -sfn ${bosl2Lib} tele/lib
-              echo "tele/lib -> Nix store (pinned via flake inputs, see flake.nix)"
+            if [ -d assemblies/tele ] && [ ! -e assemblies/tele/lib ]; then
+              ln -sfn ${bosl2Lib} assemblies/tele/lib
+              echo "assemblies/tele/lib -> Nix store (pinned via flake inputs, see flake.nix)"
             fi
-            if [ -d mount ] && [ ! -e mount/lib ]; then
-              ln -sfn ${bosl2Lib} mount/lib
-              echo "mount/lib -> Nix store (BOSL2, pinned via flake inputs)"
+            if [ -d assemblies/mount ] && [ ! -e assemblies/mount/lib ]; then
+              ln -sfn ${bosl2Lib} assemblies/mount/lib
+              echo "assemblies/mount/lib -> Nix store (BOSL2, pinned via flake inputs)"
             fi
-            if [ -d riser ] && [ ! -e riser/lib ]; then
-              ln -sfn ${bosl2Lib} riser/lib
-              echo "riser/lib -> Nix store (BOSL2, pinned via flake inputs)"
+            if [ -d assemblies/riser ] && [ ! -e assemblies/riser/lib ]; then
+              ln -sfn ${bosl2Lib} assemblies/riser/lib
+              echo "assemblies/riser/lib -> Nix store (BOSL2, pinned via flake inputs)"
+            fi
+            # lib/BOSL2 -- the repo's own reusable-component library (lib/gears,
+            # lib/motors, lib/grips) sits beside this so a lib component that
+            # needs BOSL2 (currently just hex_gear.scad) can reach it without a
+            # per-assembly copy.
+            if [ -d lib ] && [ ! -e lib/BOSL2 ]; then
+              ln -sfn ${bosl2} lib/BOSL2
+              echo "lib/BOSL2 -> Nix store (pinned via flake inputs, see flake.nix)"
             fi
             ln -sfn ${firmwareGoroot} firmware/.gopls-goroot
           '';

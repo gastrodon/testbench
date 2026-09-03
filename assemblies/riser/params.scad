@@ -29,7 +29,7 @@
 // On restating STANDARD values that ../mount/params.scad also states:
 // cad-design rule 3 is about a project's own measured and derived
 // numbers drifting apart. A published thread spec is not that. This
-// directory is deliberately self-contained the same way nema17.scad is,
+// directory is deliberately self-contained the same way ../../lib/motors/nema17.scad is,
 // so it can be copied under any 1/4-20 payload. The two numbers that are
 // genuinely SHARED with ../mount -- the payload's footprint and the
 // depth its captured nut sits at -- are NOT restated: check.py reads
@@ -38,7 +38,7 @@
 include <lib/BOSL2/std.scad>
 include <lib/BOSL2/gears.scad>
 include <lib/BOSL2/threading.scad>
-include <knob.scad>
+include <../../lib/grips/knob.scad>
 
 
 // =====================================================================

@@ -1,12 +1,12 @@
 // KNOB -- a hand grip, as a standalone copy-anywhere component.
 //
 // Deliberately self-contained: no include of params.scad, nothing about
-// tripods or telescopes in it. Same reasoning as ../mount/nema17.scad --
+// tripods or telescopes in it. Same reasoning as ../motors/nema17.scad --
 // a knob is not a feature of this riser, it is a thing this shop keeps
 // making, and the next mechanism that needs one should be able to copy
 // one file.
 //
-// The geometry is generalized from optics/focus_pinion.scad, where the
+// The geometry is generalized from assemblies/optics/focus_pinion.scad, where the
 // three-lobe "fidget spinner" silhouette was arrived at by measurement
 // rather than by eye. The reasoning is worth carrying over verbatim
 // because it is not obvious:

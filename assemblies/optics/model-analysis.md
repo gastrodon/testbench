@@ -87,7 +87,7 @@ Evaluated and rejected:
 
 ## The verification that matters
 
-`optics/check.py`. The critical design point, because it is easy to get
+`assemblies/optics/check.py`. The critical design point, because it is easy to get
 wrong:
 
 > **"The parts never intersect" is not evidence that a gear pair meshes.**

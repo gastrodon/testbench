@@ -31,9 +31,9 @@ Recorded because "1:1 gearing" otherwise reads like a mistake.
 | `az_pinion.scad` | the same component at module 2, for the azimuth | its own pin |
 | `az_handle.scad` / `tilt_handle.scad` | the two hand grips | their own pins |
 | `tripod_nut.scad` | the hand nut that clamps the tripod's own plate | — |
-| `hex_gear.scad` | the gear-with-a-hex-bore, as a copy-anywhere component | — |
-| `handle.scad` | bore + collar + male hex + shaft + grip, likewise | — |
-| `knob.scad` | the lobed grip on its own, likewise | — |
+| `../../lib/gears/hex_gear.scad` | the gear-with-a-hex-bore, as a copy-anywhere component | — |
+| `../../lib/grips/handle.scad` | bore + collar + male hex + shaft + grip, likewise | — |
+| `../../lib/grips/knob.scad` | the lobed grip on its own, likewise | — |
 | `params.scad` | **every dimension.** No number is restated anywhere else | — |
 | `assembly.scad` | the posed mechanism; the only file that knows how things move | — |
 | `pose.scad` | emits one body at its assembly pose, for the checker | — |
@@ -43,7 +43,7 @@ Recorded because "1:1 gearing" otherwise reads like a mistake.
 
 ## Gears and handles are components, not one-offs
 
-The gear with the hex bore is `hex_gear.scad`, and three of the four gears
+The gear with the hex bore is `../../lib/gears/hex_gear.scad`, and three of the four gears
 in the mechanism are instances of it. On the tilt axis the two instances
 are **the same printed part** — same module, same 20 teeth, same 20 mm
 hex — so one STL gets printed twice. That is only true because the ratio

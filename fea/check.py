@@ -5,7 +5,7 @@ A cantilever beam (100 x 10 x 10 mm, tip-loaded) has a closed-form
 Euler-Bernoulli solution; if the whole chain — STL in, gmsh surface
 reclassify, tet-10 volume mesh, ccx solve, .frd parse — is healthy, the
 computed tip deflection lands within a few percent of it. This is the
-pipeline's regression test, in the spirit of optics/check.py: every
+pipeline's regression test, in the spirit of assemblies/optics/check.py: every
 assertion here failed for real at least once while the pipeline was built
 (wrong element label, truncated node fields, inverted tets — fea/README.md).
 

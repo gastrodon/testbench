@@ -28,11 +28,11 @@ nix build .#firmware     # -> result/testbench-uno.hex
 nix build .#optics-calibration   # -> result/calibration.stl
 ```
 
-The two external OpenSCAD libraries `optics/` depends on
+The two external OpenSCAD libraries `assemblies/optics/` depends on
 (`cfinke/Technic.scad`, `paulirotta/PELA-blocks`) are flake inputs, pinned
 by commit and content-hashed in `flake.lock` — not an imperative fetch
-script. `nix develop`'s shellHook symlinks `optics/lib` to the resolved
-store paths automatically.
+script. `nix develop`'s shellHook symlinks `assemblies/optics/lib` to the
+resolved store paths automatically.
 
 One real gotcha hit while building the `firmware` package: TinyGo shells
 out to `go` underneath, which wants a writable `$HOME` for its cache — the

@@ -13,7 +13,7 @@
 // file splits, and nothing else does.
 
 include <params.scad>
-include <hex_gear.scad>
+include <../../lib/gears/hex_gear.scad>
 
 // Wrapped in a module, and that is not style. `use <>` imports
 // MODULES and nothing else, so a part file whose geometry sits at

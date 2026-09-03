@@ -12,7 +12,7 @@
 // and collar hang unsupported under the grip.
 
 include <params.scad>
-include <handle.scad>
+include <../../lib/grips/handle.scad>
 
 // Wrapped in a module, and that is not style. `use <>` imports
 // MODULES and nothing else, so a part file whose geometry sits at
