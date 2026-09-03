@@ -122,6 +122,57 @@
           ps.meshio
         ]);
 
+        # Wraps guvcview so every snapshot it takes is clipboarded and
+        # deleted instead of kept as a file — for tracing something on the
+        # desk straight into an Inkscape canvas. Saves into /dev/shm
+        # (tmpfs), not /tmp, since /tmp is disk-backed here (see `df -T
+        # /tmp /dev/shm`); a background inotifywait watches that dir rather
+        # than a fixed filename, since guvcview 2.2.2 has no post-capture
+        # hook (`--exec_command` isn't in its --help) and may increment
+        # filenames on repeat captures.
+        guvcviewClip = pkgs.writeShellApplication {
+          name = "guvcview-clip";
+          runtimeInputs = [ pkgs.guvcview pkgs.inotify-tools pkgs.xclip pkgs.wl-clipboard ];
+          text = ''
+            SNAP_DIR="$(mktemp -d /dev/shm/guvcview-clip.XXXXXX)"
+            FIFO="$SNAP_DIR/.events"
+            mkfifo "$FIFO"
+
+            copy_to_clipboard() {
+              local f="$1"
+              if [ -n "''${WAYLAND_DISPLAY:-}" ]; then
+                wl-copy -t image/png <"$f"
+              else
+                xclip -selection clipboard -t image/png -i "$f"
+              fi
+            }
+
+            INOTIFY_PID=""
+            READER_PID=""
+            cleanup() {
+              [ -n "$INOTIFY_PID" ] && kill "$INOTIFY_PID" 2>/dev/null || true
+              [ -n "$READER_PID" ] && kill "$READER_PID" 2>/dev/null || true
+              rm -rf "$SNAP_DIR"
+            }
+            trap cleanup EXIT INT TERM
+
+            inotifywait -m -q -e close_write --format '%w%f' "$SNAP_DIR" >"$FIFO" &
+            INOTIFY_PID=$!
+
+            (
+              # shellcheck disable=SC2094 # fifo read/write, not a real conflict
+              while read -r shot; do
+                [ "$shot" = "$FIFO" ] && continue
+                copy_to_clipboard "$shot"
+                rm -f "$shot"
+              done <"$FIFO"
+            ) &
+            READER_PID=$!
+
+            guvcview -i "$SNAP_DIR/shot.png" "$@"
+          '';
+        };
+
         # One firmware image per device, mirroring host/cmd/ -- each is a
         # complete, standalone binary for the whole chip (these are never
         # combined; only one runs on the Uno at a time), built from
@@ -156,6 +207,8 @@
 
           firmware-probe = mkFirmware "probe";
           firmware-light-breathe = mkFirmware "light-breathe";
+
+          guvcview-clip = guvcviewClip;
 
           # STLs for every printable part, each already rotated into its
           # print orientation so the slicer needs no manual fiddling.
@@ -240,6 +293,7 @@
             # committing the machine to it. CuraEngine was dropped from
             # nixpkgs, so this is the supported CLI slicer here.
             pkgs.prusa-slicer
+            guvcviewClip
           ];
           shellHook = ''
             if [ ! -e assemblies/optics/lib ]; then
