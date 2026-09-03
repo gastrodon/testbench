@@ -1,3 +1,23 @@
 *.hex
 /probe
 firmware/.gopls-goroot
+*.mp4
+*.gif
+result
+result-*
+
+# ~/.config/git/ignore excludes .claude/ globally (local session state,
+# worktrees). This repo ships a real skill + workflow meant to be
+# committed and shared with anyone who clones it — un-ignore just those.
+!.claude/
+!.claude/skills/
+!.claude/skills/**
+!.claude/workflows/
+!.claude/workflows/**
+
+# ...but not agent worktrees, which the negation above would otherwise
+# pull back in. Last match wins, so this has to follow it.
+.claude/worktrees/
+
+/build_native/
+optics/tmp*.scad
