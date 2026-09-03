@@ -29,6 +29,15 @@ deliberately self-contained: no `params.scad`, no telescope, so it can be
 copied into the other builds running on the same four motors),
 `lib/gears/hex_gear.scad` (a spur gear with a hex bore), and
 `lib/grips/knob.scad` / `lib/grips/handle.scad` (hand-grip components).
+`lib/external/` is the exception to the "shared component" rule and has
+its own: it holds things we did NOT make — a dryer roller, a threaded
+tube section, an extension spring, a friction strut — modelled off
+caliper readings so a design can be built around them. Those files are
+envelopes and interfaces, not parts, every constant carries a provenance
+tag, and `lib/external/README.md` says what is still unmeasured in each
+(notably: the friction strut's field sheet came back empty, so that file
+asserts rather than inventing a dimension).
+
 Everything else stays inside the assembly directory that uses it — an
 assembly owns its own meshes unless a part is a clear candidate for reuse
 elsewhere, the way `nema17.scad` was pulled out despite (at the time) only
